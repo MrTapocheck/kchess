@@ -24,18 +24,18 @@ namespace kchess
 
     /// <summary>
     /// Основной класс движка. Управляет состоянием доски, очередностью ходов и валидацией.
-    /// Не содержит графики или UI логики.
+    /// Строго отделен от логики отображения.
     /// </summary>
     public class ChessEngine
     {
-        // Доска 8x8. null означает пустую клетку.
         public Piece?[,] Board { get; private set; }
-        
         public PieceColor CurrentTurn { get; private set; } = PieceColor.White;
-        
         public bool IsGameOver { get; private set; } = false;
-        
-        public string LastStatus { get; private set; } = "Игра началась";
+        public string LastStatus { get; private set; } = "Игра_началась"; 
+
+        // Временное хранение состояния для превращения пешки, если ход прерван
+        private Position? _pendingPromotionPos = null;
+        private Position? _pendingFromPos = null;
 
         public ChessEngine()
         {
@@ -44,18 +44,22 @@ namespace kchess
         }
 
         /// <summary>
-        /// Расставляет фигуры на стартовые позиции.
+        /// Позволяет внешнему коду (например, ViewModel) установить сообщение об ошибке,
+        /// если произошла ситуация, которую движок не обработал сам.
         /// </summary>
+        public void SetStatus(string message)
+        {
+            LastStatus = message;
+        }
+
         private void InitializeBoard()
         {
-            // Пешки
             for (int i = 0; i < 8; i++)
             {
                 Board[1, i] = new Pawn(PieceColor.Black);
                 Board[6, i] = new Pawn(PieceColor.White);
             }
 
-            // Массив фигур для первого и последнего ряда
             var backRowTypes = new PieceType[] 
             { 
                 PieceType.Rook, PieceType.Knight, PieceType.Bishop, PieceType.Queen, 
@@ -69,9 +73,6 @@ namespace kchess
             }
         }
 
-        /// <summary>
-        /// Фабричный метод для создания фигур по типу.
-        /// </summary>
         private Piece CreatePiece(PieceColor color, PieceType type)
         {
             return type switch
@@ -87,20 +88,26 @@ namespace kchess
         }
 
         /// <summary>
-        /// Попытка сделать ход.
-        /// Возвращает true если ход легален и выполнен, иначе false.
+        /// Первая попытка хода. 
+        /// Если ход требует превращения пешки, бросает PawnPromotionRequiredException.
+        /// Если ход успешен, возвращает true.
         /// </summary>
         public bool TryMove(int fromX, int fromY, int toX, int toY)
         {
+            // Если мы ждем завершения превращения, этот метод блокируем или игнорируем
+            if (_pendingPromotionPos.HasValue)
+            {
+                LastStatus = "Ожидается выбор фигуры для превращения. Используйте CompletePromotion.";
+                return false;
+            }
+
             if (IsGameOver)
             {
                 LastStatus = "Игра окончена";
                 return false;
             }
 
-            // Проверка границ
-            if (fromX < 0 || fromX > 7 || fromY < 0 || fromY > 7 ||
-                toX < 0 || toX > 7 || toY < 0 || toY > 7)
+            if (!IsValidCoordinate(fromX, fromY) || !IsValidCoordinate(toX, toY))
             {
                 LastStatus = "Координаты вне доски";
                 return false;
@@ -108,7 +115,6 @@ namespace kchess
 
             var piece = Board[fromY, fromX];
             
-            // Проверка: есть ли фигура и твой ли ход
             if (piece == null)
             {
                 LastStatus = "В этой клетке нет фигуры";
@@ -120,84 +126,126 @@ namespace kchess
                 return false;
             }
 
-            // Запрос легальных ходов у самой фигуры
             var legalMoves = piece.GetLegalMoves(Board, new Position(fromX, fromY));
-            
-            // Проверка: есть ли целевая клетка в списке легальных
             var targetPos = new Position(toX, toY);
+            
             if (!legalMoves.Contains(targetPos))
             {
                 LastStatus = "Недопустимый ход для этой фигуры";
                 return false;
             }
 
-            // --- Выполнение хода ---
-            // Взятие фигуры (если есть)
+            // --- Логика выполнения хода ---
+            
+            // Проверка на взятие короля (для упрощенного окончания игры)
             var captured = Board[toY, toX];
             if (captured != null && captured.Type == PieceType.King)
             {
+                Board[toY, toX] = piece;
+                Board[fromY, fromX] = null;
                 IsGameOver = true;
                 LastStatus = $"Мат! Победили {(CurrentTurn == PieceColor.White ? "белые" : "черные")}";
+                return true;
             }
 
-            // Перемещение
+            // Перемещение фигуры (пока временно)
             Board[toY, toX] = piece;
             Board[fromY, fromX] = null;
 
-            // Превращение пешки (упрощенно: всегда в ферзя, если дошла до края)
+            // --- Проверка на превращение пешки ---
+            bool isPromotionNeeded = false;
             if (piece.Type == PieceType.Pawn)
             {
                 if ((piece.Color == PieceColor.White && toY == 0) || 
                     (piece.Color == PieceColor.Black && toY == 7))
                 {
-                    Board[toY, toX] = new Queen(piece.Color);
-                    LastStatus = "Пешка превратилась в ферзя!";
+                    isPromotionNeeded = true;
                 }
             }
 
-            // Смена хода (если игра не закончена)
+            if (isPromotionNeeded)
+            {
+                // Откатываем визуальное перемещение пешки, так как она должна исчезнуть и стать новой фигурой
+                // Но формально ход уже сделан, пешка стоит на последней горизонтали.
+                // Мы просто блокируем смену хода и требуем выбора.
+                _pendingPromotionPos = new Position(toX, toY);
+                _pendingFromPos = new Position(fromX, fromY); // На случай если нужно будет откатить совсем
+                
+                LastStatus = "Требуется выбор фигуры для превращения пешки!";
+                
+                // ВАЖНО: Мы НЕ меняем CurrentTurn и выбрасываем исключение, чтобы UI перехватил его
+                // и открыл диалог выбора. 
+                // Возвращаем false, так как ход еще не завершен окончательно.
+                // Но лучше всё-таки кинуть исключение, как ты и просил, чтобы нельзя было проигнорировать.
+                
+                // Отменяем перемещение в памяти до выбора? Нет, пешка уже там. 
+                // Просто помечаем состояние.
+                
+                throw new PawnPromotionRequiredException(toX, toY, piece.Color);
+            }
+
+            // Если превращения не нужно, ход завершен
+            FinishTurn();
+            return true;
+        }
+
+        /// <summary>
+        /// Завершает ход с выбранной фигурой для превращения.
+        /// Вызывается только после того, как пользователь выбрал фигуру.
+        /// </summary>
+        public void CompletePromotion(PieceType newType)
+        {
+            if (!_pendingPromotionPos.HasValue)
+            {
+                throw new InvalidOperationException("Нет активного процесса превращения пешки.");
+            }
+
+            if (newType == PieceType.Pawn || newType == PieceType.King)
+            {
+                throw new ArgumentException("Нельзя превратить пешку в пешку или короля.");
+            }
+
+            int x = _pendingPromotionPos.Value.X;
+            int y = _pendingPromotionPos.Value.Y;
+            var color = CurrentTurn; // Цвет текущей фигуры (пешки)
+
+            // Заменяем пешку на выбранную фигуру
+            Board[y, x] = CreatePiece(color, newType);
+            
+            LastStatus = $"Пешка превратилась в {(newType == PieceType.Queen ? "ферзя" : newType.ToString().ToLower())}";
+
+            // Сбрасываем состояние ожидания
+            _pendingPromotionPos = null;
+            _pendingFromPos = null;
+
+            // Теперь завершаем ход
+            FinishTurn();
+        }
+
+        private void FinishTurn()
+        {
             if (!IsGameOver)
             {
                 CurrentTurn = (CurrentTurn == PieceColor.White) ? PieceColor.Black : PieceColor.White;
                 LastStatus = $"Ход выполнен. Теперь {(CurrentTurn == PieceColor.White ? "белых" : "черных")}.";
             }
-
-            return true;
         }
 
-        /// <summary>
-        /// Возвращает текстовое представление доски для отладки или консоли.
-        /// </summary>
-        public string GetBoardVisual()
+        private bool IsValidCoordinate(int x, int y)
         {
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("  a b c d e f g h");
-            for (int y = 0; y < 8; y++)
-            {
-                sb.Append(8 - y).Append(" ");
-                for (int x = 0; x < 8; x++)
-                {
-                    var p = Board[y, x];
-                    if (p == null) sb.Append(". ");
-                    else
-                    {
-                        char symbol = p.Type switch
-                        {
-                            PieceType.King => 'K',
-                            PieceType.Queen => 'Q',
-                            PieceType.Rook => 'R',
-                            PieceType.Bishop => 'B',
-                            PieceType.Knight => 'N',
-                            PieceType.Pawn => 'P',
-                            _ => '?'
-                        };
-                        sb.Append(p.Color == PieceColor.White ? char.ToUpper(symbol) : char.ToLower(symbol));
-                        sb.Append(" ");
-                    }
-                }
-                sb.AppendLine();
-            }
-            return sb.ToString();
+            return x >= 0 && x < 8 && y >= 0 && y < 8;
+        }
+        
+        // Метод для отмены хода (если нужно будет реализовать UI отмены)
+        public void CancelPromotion()
+        {
+             if (!_pendingPromotionPos.HasValue) return;
+             
+             // Тут нужна логика отката, но пока просто сбросим флаг
+             // В полной версии нужно вернуть пешку назад и восстановить съеденную фигуру
+             // Для этого нужно хранить состояние "до хода". 
+             // Пока оставим заглушку с исключением, что отмена невозможна без истории.
+             throw new NotImplementedException("Отмена превращения требует реализации истории ходов (Move History).");
         }
     }
 }
