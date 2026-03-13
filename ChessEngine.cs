@@ -4,6 +4,25 @@ using System.Collections.Generic;
 namespace kchess
 {
     /// <summary>
+    /// Исключение, сигнализирующее о необходимости выбора фигуры для превращения пешки.
+    /// Содержит координаты, где произошло событие.
+    /// </summary>
+    public class PawnPromotionRequiredException : Exception
+    {
+        public int X { get; }
+        public int Y { get; }
+        public PieceColor Color { get; }
+
+        public PawnPromotionRequiredException(int x, int y, PieceColor color) 
+            : base($"Требуется выбор фигуры для превращения пешки на позиции ({x}, {y})")
+        {
+            X = x;
+            Y = y;
+            Color = color;
+        }
+    }
+
+    /// <summary>
     /// Основной класс движка. Управляет состоянием доски, очередностью ходов и валидацией.
     /// Не содержит графики или UI логики.
     /// </summary>
