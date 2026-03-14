@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace kchess
 {
@@ -25,11 +26,10 @@ namespace kchess
         public bool IsGameOver { get; private set; } = false;
         public string LastStatus { get; private set; } = "Игра началась";
 
-        // Для отслеживания права на взятие на проходе
+        // Взятие на проходе: координаты клетки, которую можно "съесть"
         private Position? _enPassantTarget = null; 
 
-        // Для рокировки (флаги: двигались ли король и ладьи)
-        // true = еще не двигались, false = двигались или съедены
+        // Флаги рокировки: true = еще не двигались (можно рокироваться)
         private bool _whiteKingMoved = false;
         private bool _blackKingMoved = false;
         private bool _whiteRookKingsideMoved = false;
@@ -47,7 +47,6 @@ namespace kchess
 
         private void InitializeBoard()
         {
-            // Пешки
             for (int i = 0; i < 8; i++)
             {
                 Board[1, i] = new Pawn(PieceColor.Black);
@@ -66,11 +65,15 @@ namespace kchess
                 Board[7, i] = CreatePiece(PieceColor.White, backRowTypes[i]);
             }
             
-            // Сброс флагов
+            ResetCastlingFlags();
+            _enPassantTarget = null;
+        }
+
+        private void ResetCastlingFlags()
+        {
             _whiteKingMoved = _blackKingMoved = false;
             _whiteRookKingsideMoved = _whiteRookQueensideMoved = false;
             _blackRookKingsideMoved = _blackRookQueensideMoved = false;
-            _enPassantTarget = null;
         }
 
         private Piece CreatePiece(PieceColor color, PieceType type)
@@ -87,13 +90,8 @@ namespace kchess
             };
         }
 
-        /// <summary>
-        /// Проверяет, атакована ли клетка (x, y) фигурами указанного цвета.
-        /// Используется для проверки шаха.
-        /// </summary>
         private bool IsSquareAttacked(int x, int y, PieceColor attackerColor)
         {
-            // Проходим по всей доске и ищем фигуры атакующего цвета
             for (int bx = 0; bx < 8; bx++)
             {
                 for (int by = 0; by < 8; by++)
@@ -101,16 +99,15 @@ namespace kchess
                     var piece = Board[by, bx];
                     if (piece != null && piece.Color == attackerColor)
                     {
-                        // Получаем ходы этой фигуры
-                        // Важно: для пешек атака отличается от движения (они бьют по диагонали)
-                        // Но наш GetLegalMoves для пешки уже включает взятие по диагонали.
-                        // Однако GetLegalMoves может проверять шах (рекурсия)! Чтобы избежать этого,
-                        // нам нужна версия получения ходов БЕЗ проверки шаха.
-                        // УПРОЩЕНИЕ: Для проверки шаха мы можем использовать "псевдо-легальные" ходы.
-                        // Но так как у нас логика в фигурах простая, можно вызвать GetLegalMoves,
-                        // ЕСЛИ мы гарантируем, что внутри фигур нет проверки IsKingInCheck.
-                        // Сейчас в фигурах её нет. Значит безопасно.
-                        
+                        // Для пешек атака только по диагонали
+                        if (piece.Type == PieceType.Pawn)
+                        {
+                            int direction = (piece.Color == PieceColor.White) ? -1 : 1;
+                            if (by + direction == y && Math.Abs(bx - x) == 1)
+                                return true;
+                            continue;
+                        }
+
                         var moves = piece.GetLegalMoves(Board, new Position(bx, by));
                         foreach (var move in moves)
                         {
@@ -123,12 +120,8 @@ namespace kchess
             return false;
         }
 
-        /// <summary>
-        /// Проверяет, находится ли король указанного цвета под шахом.
-        /// </summary>
         public bool IsKingInCheck(PieceColor color)
         {
-            // Находим короля
             int kx = -1, ky = -1;
             for (int x = 0; x < 8; x++)
             {
@@ -144,16 +137,12 @@ namespace kchess
                 if (kx != -1) break;
             }
 
-            if (kx == -1) return false; // Короля нет (съеден в упрощенной версии?)
+            if (kx == -1) return false; 
 
             PieceColor enemyColor = (color == PieceColor.White) ? PieceColor.Black : PieceColor.White;
             return IsSquareAttacked(kx, ky, enemyColor);
         }
 
-        /// <summary>
-        /// Проверяет, есть ли у игрока хоть один легальный ход.
-        /// Используется для определения Мата и Пата.
-        /// </summary>
         public bool HasLegalMoves(PieceColor color)
         {
             for (int x = 0; x < 8; x++)
@@ -163,53 +152,65 @@ namespace kchess
                     var piece = Board[y, x];
                     if (piece != null && piece.Color == color)
                     {
-                        // Получаем псевдо-ходы
                         var pseudoMoves = piece.GetLegalMoves(Board, new Position(x, y));
                         
                         foreach (var move in pseudoMoves)
                         {
-                            // Симулируем ход
                             var savedTarget = Board[move.Y, move.X];
                             var savedSource = Board[y, x];
-                            
+                            var capturedEpPawn = false;
+                            Position? epPawnPos = null;
+
+                            // Обработка EP в симуляции
+                            if (piece.Type == PieceType.Pawn && move.X != x && savedTarget == null)
+                            {
+                                int dir = (piece.Color == PieceColor.White) ? 1 : -1;
+                                if (IsValidCoordinate(move.X, move.Y + dir))
+                                {
+                                    var ep = Board[move.Y + dir, move.X];
+                                    if (ep != null && ep.Type == PieceType.Pawn && ep.Color != piece.Color)
+                                    {
+                                        capturedEpPawn = true;
+                                        epPawnPos = new Position(move.X, move.Y + dir);
+                                        
+                                        // Безопасное удаление пешки
+                                        if (epPawnPos.HasValue)
+                                        {
+                                            Board[epPawnPos.Value.Y, epPawnPos.Value.X] = null;
+                                        }
+                                    }
+                                }
+                            }
+
                             Board[move.Y, move.X] = savedSource;
                             Board[y, x] = null;
 
-                            // Если после хода король не под шахом - значит ход легален
                             bool inCheck = IsKingInCheck(color);
 
-                            // Откатываем ход
+                            // Откат
                             Board[y, x] = savedSource;
                             Board[move.Y, move.X] = savedTarget;
+                            
+                            // Безопасное восстановление пешки
+                            if (capturedEpPawn && epPawnPos.HasValue)
+                            {
+                                Board[epPawnPos.Value.Y, epPawnPos.Value.X] = new Pawn(piece.Color == PieceColor.White ? PieceColor.Black : PieceColor.White);
+                            }
 
                             if (!inCheck)
-                                return true; // Нашли хоть один легальный ход
+                                return true;
                         }
                     }
                 }
             }
-            return false; // Легальных ходов нет
+            return false;
         }
 
         public bool TryMove(int fromX, int fromY, int toX, int toY)
         {
-            if (IsGameOver)
-            {
-                LastStatus = "Игра окончена";
-                return false;
-            }
-
-            if (_pendingPromotionPos.HasValue)
-            {
-                LastStatus = "Ожидается выбор фигуры для превращения.";
-                return false;
-            }
-
-            if (!IsValidCoordinate(fromX, fromY) || !IsValidCoordinate(toX, toY))
-            {
-                LastStatus = "Координаты вне доски";
-                return false;
-            }
+            if (IsGameOver) { LastStatus = "Игра окончена"; return false; }
+            if (_pendingPromotionPos.HasValue) { LastStatus = "Ожидается выбор фигуры"; return false; }
+            if (!IsValidCoordinate(fromX, fromY) || !IsValidCoordinate(toX, toY)) { LastStatus = "Координаты вне доски"; return false; }
 
             var piece = Board[fromY, fromX];
             if (piece == null || piece.Color != CurrentTurn)
@@ -218,68 +219,134 @@ namespace kchess
                 return false;
             }
 
-            // 1. Получаем псевдо-легальные ходы (геометрия фигуры)
             var pseudoMoves = piece.GetLegalMoves(Board, new Position(fromX, fromY));
             var targetPos = new Position(toX, toY);
 
-            if (!pseudoMoves.Contains(targetPos))
+            bool isCastlingAttempt = false;
+            if (piece.Type == PieceType.King && Math.Abs(toX - fromX) == 2 && toY == fromY)
             {
-                // Проверка на рокировку (если геометрически ход не подходит, но это король на 2 клетки)
-                if (piece.Type == PieceType.King && Math.Abs(toX - fromX) == 2 && toY == fromY)
-                {
-                    // Попытка рокировки будет обработана ниже, если геометрия разрешает
-                }
-                else
+                isCastlingAttempt = true;
+            }
+            else if (!pseudoMoves.Contains(targetPos))
+            {
+                // Проверка на взятие на проходе (геометрически это ход по диагонали на пустую клетку)
+                bool isEpAttempt = (piece.Type == PieceType.Pawn && toX != fromX && Board[toY, toX] == null);
+                
+                if (!isEpAttempt)
                 {
                     LastStatus = "Недопустимый ход для этой фигуры";
                     return false;
                 }
             }
 
-            // --- СИМУЛЯЦИЯ ХОДА ДЛЯ ПРОВЕРКИ НА ШАХ ---
-            
-            // Сохраняем состояние для отката
-            var capturedPiece = Board[toY, toX];
-            var movingPiece = Board[fromY, fromX];
-            
-            // Особая логика для взятия на проходе (симуляция)
+            // --- ПРОВЕРКА НА ВЗЯТИЕ НА ПРОХОДЕ ---
             bool isEnPassantCapture = false;
-            if (movingPiece.Type == PieceType.Pawn && toX != fromX && capturedPiece == null)
+            Position? epCapturedPos = null;
+            
+            // Проверяем: это пешка, ход по диагонали, клетка назначения пустая?
+            if (piece.Type == PieceType.Pawn && toX != fromX && Board[toY, toX] == null)
             {
-                // Это взятие на проходе?
-                int direction = (movingPiece.Color == PieceColor.White) ? 1 : -1; // Пешка пришла с противоположной стороны
-                // Пешка стоит на toY, съеденная должна быть на toY + direction
-                if (IsValidCoordinate(toX, toY + direction))
+                // Есть ли активная цель для взятия на проходе?
+                if (_enPassantTarget.HasValue)
                 {
-                    var epPawn = Board[toY + direction, toX];
-                    if (epPawn != null && epPawn.Type == PieceType.Pawn && epPawn.Color != movingPiece.Color)
+                    // Совпадают ли координаты цели с клеткой назначения?
+                    if (_enPassantTarget.Value.X == toX && _enPassantTarget.Value.Y == toY)
                     {
                         isEnPassantCapture = true;
-                        capturedPiece = epPawn; // Запоминаем, кого будем "съедать" виртуально
+                        int capturedPawnY = fromY; // Пешка противника стоит на той же горизонтали, откуда мы пошли
+                        epCapturedPos = new Position(toX, capturedPawnY);
+                        
+                        // Дополнительная проверка: действительно ли там вражеская пешка?
+                        if (Board[capturedPawnY, toX] == null || 
+                            Board[capturedPawnY, toX].Type != PieceType.Pawn || 
+                            Board[capturedPawnY, toX].Color == piece.Color)
+                        {
+                            LastStatus = "Ошибка логики взятия на проходе";
+                            return false;
+                        }
                     }
+                    else
+                    {
+                        // Цель есть, но мы пошли не туда
+                        LastStatus = "Недопустимый ход (взятие на проходе невозможно здесь)";
+                        return false;
+                    }
+                }
+                else
+                {
+                    // Цели нет вообще
+                    LastStatus = "Недопустимый ход (нет фигуры для взятия на проходе)";
+                    return false;
                 }
             }
 
+            // --- ПРОВЕРКА НА РОКИРОВКУ ---
+            if (isCastlingAttempt)
+            {
+                bool kingside = toX > fromX;
+                if (CurrentTurn == PieceColor.White)
+                {
+                    if (_whiteKingMoved) { LastStatus = "Король уже ходил"; return false; }
+                    if (kingside && _whiteRookKingsideMoved) { LastStatus = "Ладья уже ходила"; return false; }
+                    if (!kingside && _whiteRookQueensideMoved) { LastStatus = "Ладья уже ходила"; return false; }
+                }
+                else
+                {
+                    if (_blackKingMoved) { LastStatus = "Король уже ходил"; return false; }
+                    if (kingside && _blackRookKingsideMoved) { LastStatus = "Ладья уже ходила"; return false; }
+                    if (!kingside && _blackRookQueensideMoved) { LastStatus = "Ладья уже ходила"; return false; }
+                }
+
+                if (IsKingInCheck(CurrentTurn)) { LastStatus = "Нельзя рокироваться под шахом"; return false; }
+
+                int step = kingside ? 1 : -1;
+                int rookFromX = kingside ? 7 : 0;
+                int rookToX = kingside ? 5 : 3;
+                
+                // Проверка путей
+                for (int x = fromX + step; x != (kingside ? toX + 1 : -1); x += step)
+                {
+                    if (Board[fromY, x] != null) { LastStatus = "Путь заблокирован"; return false; }
+                    if (x != toX && IsSquareAttacked(x, fromY, CurrentTurn == PieceColor.White ? PieceColor.Black : PieceColor.White))
+                    {
+                        LastStatus = "Поле под ударом"; return false;
+                    }
+                }
+                
+                // Проверка ладьи
+                if (Board[fromY, rookFromX] == null || Board[fromY, rookFromX].Type != PieceType.Rook)
+                {
+                    LastStatus = "Ладья отсутствует"; return false;
+                }
+            }
+
+            // --- СИМУЛЯЦИЯ ХОДА ДЛЯ ПРОВЕРКИ НА ШАХ (для обычных ходов) ---
+            // Для рокировки мы уже проверили шах на путях, но нужно проверить финальную позицию короля? 
+            // Да, правило: король не может оказаться под шахом после хода.
+            
+            // Сохраняем состояние
+            var capturedPiece = Board[toY, toX];
+            var movingPiece = Board[fromY, fromX];
+            
             // Делаем виртуальный ход
             Board[toY, toX] = movingPiece;
             Board[fromY, fromX] = null;
-            if (isEnPassantCapture)
+            
+            Piece? epRemovedPiece = null;
+            if (isEnPassantCapture && epCapturedPos.HasValue)
             {
-                // Виртуально убираем съеденную пешку
-                int epPawnY = toY + ((movingPiece.Color == PieceColor.White) ? 1 : -1);
-                Board[epPawnY, toX] = null; 
+                epRemovedPiece = Board[epCapturedPos.Value.Y, epCapturedPos.Value.X];
+                Board[epCapturedPos.Value.Y, epCapturedPos.Value.X] = null;
             }
 
-            // Проверяем: остался ли мой король под ударом?
             bool inCheck = IsKingInCheck(CurrentTurn);
 
-            // ОТКАТ виртуального хода
+            // ОТКАТ
             Board[fromY, fromX] = movingPiece;
-            Board[toY, toX] = capturedPiece; // Возвращаем жертву или пустоту
-            if (isEnPassantCapture)
+            Board[toY, toX] = capturedPiece;
+            if (isEnPassantCapture && epCapturedPos.HasValue)
             {
-                int epPawnY = toY + ((movingPiece.Color == PieceColor.White) ? 1 : -1);
-                Board[epPawnY, toX] = capturedPiece; // Возвращаем пешку на место
+                Board[epCapturedPos.Value.Y, epCapturedPos.Value.X] = epRemovedPiece;
             }
 
             if (inCheck)
@@ -288,53 +355,47 @@ namespace kchess
                 return false;
             }
 
-            // --- ЕСЛИ ПРОШЛИ ПРОВЕРКУ, ДЕЛАЕМ РЕАЛЬНЫЙ ХОД ---
+            // --- ВЫПОЛНЕНИЕ РЕАЛЬНОГО ХОДА ---
             
-            // Сброс флага en passant перед новым ходом
+            // Сброс En Passant цели перед новым ходом
             _enPassantTarget = null;
 
-            // Реальное перемещение
+            // Перемещение
             Board[toY, toX] = movingPiece;
             Board[fromY, fromX] = null;
 
-            // Обработка взятия на проходе (реальная)
-            if (isEnPassantCapture)
+            // Реализация взятия на проходе
+            if (isEnPassantCapture && epCapturedPos.HasValue)
             {
-                int epPawnY = toY + ((movingPiece.Color == PieceColor.White) ? 1 : -1);
-                Board[epPawnY, toX] = null;
+                Board[epCapturedPos.Value.Y, epCapturedPos.Value.X] = null;
                 LastStatus = "Взятие на проходе!";
             }
 
-            // Установка цели для взятия на проходе (если пешка прыгнула на 2 клетки)
+            // Установка цели для En Passant (если пешка прыгнула на 2)
             if (movingPiece.Type == PieceType.Pawn && Math.Abs(toY - fromY) == 2)
             {
                 int epY = (fromY + toY) / 2;
                 _enPassantTarget = new Position(toX, epY);
             }
 
-            // Обработка рокировки (перемещение ладьи)
-            if (movingPiece.Type == PieceType.King && Math.Abs(toX - fromX) == 2)
+            // Реализация рокировки (движение ладьи)
+            if (isCastlingAttempt)
             {
-                bool isKingside = toX > fromX;
-                int rookFromX = isKingside ? 7 : 0;
-                int rookToX = isKingside ? 5 : 3;
+                bool kingside = toX > fromX;
+                int rookFromX = kingside ? 7 : 0;
+                int rookToX = kingside ? 5 : 3;
                 int rookY = fromY;
 
                 var rook = Board[rookY, rookFromX];
-                
-                // Явная проверка на null перед доступом к свойствам
-                if (rook != null && rook.Type == PieceType.Rook)
-                {
-                    Board[rookY, rookToX] = rook;
-                    Board[rookY, rookFromX] = null;
-                }
-                
-                // Помечаем, что король ходил
+                Board[rookY, rookToX] = rook;
+                Board[rookY, rookFromX] = null;
+
+                // Обновление флагов
                 if (CurrentTurn == PieceColor.White) _whiteKingMoved = true;
                 else _blackKingMoved = true;
             }
 
-            // Обновление флагов рокировки при движении ладей
+            // Обновление флагов при движении ладей (если просто пошли ладьей, а не рокировка)
             if (movingPiece.Type == PieceType.Rook)
             {
                 if (CurrentTurn == PieceColor.White)
@@ -347,6 +408,13 @@ namespace kchess
                     if (fromX == 0 && fromY == 0) _blackRookQueensideMoved = true;
                     if (fromX == 7 && fromY == 0) _blackRookKingsideMoved = true;
                 }
+            }
+            
+            // Обновление флага короля при обычном ходе (не рокировке)
+            if (movingPiece.Type == PieceType.King && !isCastlingAttempt)
+            {
+                if (CurrentTurn == PieceColor.White) _whiteKingMoved = true;
+                else _blackKingMoved = true;
             }
 
             // Превращение пешки
@@ -371,7 +439,7 @@ namespace kchess
             PieceColor previousTurn = CurrentTurn;
             CurrentTurn = (CurrentTurn == PieceColor.White) ? PieceColor.Black : PieceColor.White;
 
-            // Проверка на Мат или Пат
+            // Проверка на Мат/Пат
             bool opponentInCheck = IsKingInCheck(CurrentTurn);
             bool opponentHasMoves = HasLegalMoves(CurrentTurn);
 
@@ -379,13 +447,9 @@ namespace kchess
             {
                 IsGameOver = true;
                 if (opponentInCheck)
-                {
                     LastStatus = $"МАТ! Победили {(previousTurn == PieceColor.White ? "белые" : "черные")}!";
-                }
                 else
-                {
                     LastStatus = "ПАТ! Ничья.";
-                }
             }
             else
             {
@@ -408,14 +472,10 @@ namespace kchess
 
             int x = _pendingPromotionPos.Value.X;
             int y = _pendingPromotionPos.Value.Y;
-            
-            // ИСПРАВЛЕНИЕ: Проверка на null
             var currentPiece = Board[y, x];
-            if (currentPiece == null) 
-                throw new InvalidOperationException("Фигура для превращения не найдена.");
+            if (currentPiece == null) throw new InvalidOperationException("Фигура не найдена.");
 
             var color = currentPiece.Color;
-
             Board[y, x] = CreatePiece(color, newType);
             
             _pendingPromotionPos = null;
@@ -426,7 +486,6 @@ namespace kchess
             if (!opponentHasMoves)
             {
                 IsGameOver = true;
-                // Исправлена логика победителя (победил тот, чей ход БЫЛ, т.е. противоположный CurrentTurn)
                 var winner = (CurrentTurn == PieceColor.White) ? "черные" : "белые";
                 LastStatus = opponentInCheck ? $"МАТ! Победили {winner}!" : "ПАТ! Ничья.";
             }

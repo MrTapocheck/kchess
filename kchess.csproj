@@ -15,4 +15,8 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.6" />
     <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.6" />
   </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Graphics/Assets/**" />
+  </ItemGroup>
 </Project>

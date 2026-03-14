@@ -9,25 +9,37 @@ namespace kchess.Graphics
     /// <summary>
     /// Превращает объект фигуры в букву (P, N, K...).
     /// </summary>
-    public class PieceToStringConverter : IValueConverter
+    public class PieceToImagePathConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is Piece piece)
             {
-                char symbol = piece.Type switch
+                string figCode = piece.Type switch
                 {
-                    PieceType.King => 'K',
-                    PieceType.Queen => 'Q',
-                    PieceType.Rook => 'R',
-                    PieceType.Bishop => 'B',
-                    PieceType.Knight => 'N',
-                    PieceType.Pawn => 'P',
-                    _ => '?'
+                    PieceType.Pawn => "p",
+                    PieceType.Knight => "n",
+                    PieceType.Bishop => "b",
+                    PieceType.Rook => "r",
+                    PieceType.Queen => "q",
+                    PieceType.King => "k",
+                    _ => ""
                 };
-                return symbol.ToString();
+
+                if (string.IsNullOrEmpty(figCode))
+                    return null;
+
+                // l = light (white), d = dark (black)
+                string colorCode = (piece.Color == PieceColor.White) ? "l" : "d";
+
+                // ИСПРАВЛЕНО: убираем подчеркивание перед t60
+                // Было: chess_{fig}{color}_t60.png
+                // Стало: Chess_{fig}{color}t60.png (обрати внимание на большую C и отсутствие _)
+                string fileName = $"Chess_{figCode}{colorCode}t60.png";
+
+                return new Uri($"avares://kchess/Graphics/Assets/{fileName}");
             }
-            return string.Empty;
+            return null;
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

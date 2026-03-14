@@ -1,23 +1,26 @@
-using System; // для Exception
-using Avalonia; // Нужно для Thickness
-using System.Collections.Generic; // Для List<T>
+using System; 
+using System.Collections.Generic; 
+using Avalonia; 
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Data; // Нужно для Bind
-using Avalonia.Threading; //Нужно для Dispatch
-using Avalonia.Input; // для маусботон
+using Avalonia.Media.Imaging; // <--- ДОБАВЛЕНО: Нужно для Bitmap
+using Avalonia.Data; 
+using Avalonia.Threading; 
+using Avalonia.Input; 
 using kchess; 
 using kchess.Graphics;
+using Avalonia.Platform; // для ресурсов
 
 namespace kchess.Graphics
 {
     public partial class MainWindow : Window
     {
-        private readonly PieceToStringConverter _textConverter = new();
-        private readonly PieceColorToBrushConverter _colorConverter = new();
-        // Список всех клеток доски для ручного обновления
+        // Старые конвертеры удалены, так как мы грузим картинки вручную
+        
         private readonly List<Border> _cells = new List<Border>();
+        // Список картинок можно не хранить отдельно, если мы берем их из cell.Child, но оставим для удобства
+        private readonly List<Image> _images = new List<Image>(); 
 
         private int? _selectedX;
         private int? _selectedY;
@@ -28,15 +31,14 @@ namespace kchess.Graphics
             this.Opened += (s, e) => BuildChessBoard();
         }
 
-        
-
         private void BuildChessBoard()
         {
             var grid = this.FindControl<Grid>("ChessBoardGrid");
             if (grid == null) return;
 
             grid.Children.Clear();
-            _cells.Clear(); // Очищаем список
+            _cells.Clear();
+            _images.Clear();
 
             for (int y = 0; y < 8; y++)
             {
@@ -52,28 +54,32 @@ namespace kchess.Graphics
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch,
                         Padding = new Thickness(0),
-                        Tag = $"{currentX},{currentY}" // Сохраняем координаты в Tag
+                        Tag = $"{currentX},{currentY}"
                     };
 
                     bool isDark = (currentX + currentY) % 2 == 1;
                     var cellColor = isDark ? Color.Parse("#769656") : Color.Parse("#F0D9B5");
                     cellBorder.Background = new SolidColorBrush(cellColor);
 
-                    var pieceText = new TextBlock
+                    // Создаем Image вместо TextBlock
+                    var pieceImage = new Image
                     {
-                        Name = $"PieceText_{x}_{y}", // Дадим имя, чтобы найти потом
-                        FontSize = 40,
-                        FontWeight = FontWeight.Bold,
+                        Name = $"PieceImage_{x}_{y}",
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        Background = Brushes.Transparent
+                        Stretch = Stretch.Uniform,
+                        MaxWidth = 50,
+                        MaxHeight = 50
                     };
-                    
-                    // Привязки оставляем для инициализации, но обновлять будем вручную
-                    pieceText.Bind(TextBlock.TextProperty, new Binding($"Board[{currentY},{currentX}]") { Converter = _textConverter });
-                    pieceText.Bind(TextBlock.ForegroundProperty, new Binding($"Board[{currentY},{currentX}]") { Converter = _colorConverter });
 
-                    cellBorder.Child = pieceText;
+                    // ВАЖНО: МЫ УБРАЛИ ПРИВЯЗКУ (BINDING) ЧЕРЕЗ КОНВЕРТЕРЫ, ТАК КАК ОНИ УДАЛЕНЫ ИЛИ НЕ НУЖНЫ.
+                    // МЫ БУДЕМ ОБНОВЛЯТЬ КАРТИНКИ ВРУЧНУЮ ЧЕРЕЗ UpdateBoardVisuals.
+                    // Если хочешь оставить привязку для начальной отрисовки, нужно создать новый конвертер, 
+                    // но ручное обновление надежнее для массивов.
+                    // Поэтому просто оставляем pieceImage.Source = null (по умолчанию).
+
+                    cellBorder.Child = pieceImage;
+                    
                     cellBorder.PointerReleased += (s, e) => 
                     {
                         if (e.InitialPressMouseButton == MouseButton.Left)
@@ -82,12 +88,15 @@ namespace kchess.Graphics
                     cellBorder.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
 
                     grid.Children.Add(cellBorder);
-                    _cells.Add(cellBorder); // СОХРАНЯЕМ ССЫЛКУ
+                    _cells.Add(cellBorder);
+                    _images.Add(pieceImage);
                 }
             }
+            
+            // Первоначальная отрисовка фигур после создания доски
+            UpdateBoardVisuals();
         }
 
-                // Метод для принудительного обновления содержимого клеток
         private void UpdateBoardVisuals()
         {
             var vm = this.DataContext as MainViewModel;
@@ -95,7 +104,6 @@ namespace kchess.Graphics
 
             foreach (var cell in _cells)
             {
-                // Получаем координаты из Tag
                 var tag = cell.Tag?.ToString()?.Split(',');
                 if (tag != null && tag.Length == 2)
                 {
@@ -103,120 +111,108 @@ namespace kchess.Graphics
                     int y = int.Parse(tag[1]);
                     
                     var piece = vm.Board[y, x];
-                    var textBlock = cell.Child as TextBlock;
+                    var image = cell.Child as Image;
                     
-                    if (textBlock != null)
+                    if (image != null)
                     {
-                        // Обновляем текст вручную
-                        string text = "";
-                        if (piece != null)
-                        {
-                            switch (piece.Type)
-                            {
-                                case PieceType.King: text = "K"; break;
-                                case PieceType.Queen: text = "Q"; break;
-                                case PieceType.Rook: text = "R"; break;
-                                case PieceType.Bishop: text = "B"; break;
-                                case PieceType.Knight: text = "N"; break;
-                                case PieceType.Pawn: text = "P"; break;
-                                default: text = "?"; break;
-                            }
-                        }
-                        textBlock.Text = text;
-
-                        // Обновляем цвет вручную
                         if (piece == null)
                         {
-                            textBlock.Foreground = Brushes.Transparent;
+                            image.Source = null;
                         }
                         else
                         {
-                            textBlock.Foreground = (piece.Color == PieceColor.White) 
-                                ? Brushes.White 
-                                : Brushes.Black;
+                            string figCode = piece.Type switch
+                            {
+                                PieceType.Pawn => "p",
+                                PieceType.Knight => "n",
+                                PieceType.Bishop => "b",
+                                PieceType.Rook => "r",
+                                PieceType.Queen => "q",
+                                PieceType.King => "k",
+                                _ => ""
+                            };
+
+                            string colorCode = (piece.Color == PieceColor.White) ? "l" : "d";
+
+                            if (!string.IsNullOrEmpty(figCode))
+                            {
+                                string fileName = $"Chess_{figCode}{colorCode}t60.png";
+                                
+                                try 
+                                {
+                                    // Формируем относительный путь внутри сборки
+                                    // Путь должен начинаться со слэша и указывать на папку Assets
+                                    string assetPath = $"/Graphics/Assets/{fileName}";
+                                    
+                                    // Создаем URI для ресурса
+                                    var uri = new Uri($"avares://kchess{assetPath}");
+                                    
+                                    // Открываем поток через AssetLoader
+                                    using var stream = AssetLoader.Open(uri);
+                                    
+                                    // Загружаем Bitmap из потока
+                                    image.Source = new Bitmap(stream);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"Ошибка загрузки картинки {fileName}: {ex.Message}");
+                                    image.Source = null;
+                                }
+                            }
+                            else
+                            {
+                                image.Source = null;
+                            }
                         }
                     }
                 }
             }
         }
 
-        
-
         private void OnCellClicked(int x, int y)
         {
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            Console.WriteLine($"Клик по клетке: {x}, {y}. Выбрано ранее: {_selectedX}, {_selectedY}");
-
-            // Если уже выбрана фигура, пытаемся сделать ход
             if (_selectedX.HasValue && _selectedY.HasValue)
             {
-                // Если кликнули туда же - сброс
                 if (_selectedX == x && _selectedY == y)
                 {
-                    Console.WriteLine("Сброс выбора (клик туда же).");
                     ClearSelection();
                     return;
                 }
 
-                Console.WriteLine($"Попытка хода из ({_selectedX}, {_selectedY}) в ({x}, {y})");
-                
-                // Пытаемся сделать ход
                 vm.TryMakeMove(_selectedX.Value, _selectedY.Value, x, y);
                 
-                // ВАЖНО: Принудительно обновляем доску вручную!
-                UpdateBoardVisuals(); 
+                UpdateBoardVisuals();
 
-                // Проверка на превращение
                 if (vm.IsWaitingForPromotion)
                 {
-                    Console.WriteLine("Требуется превращение!");
                     ShowPromotionDialog(vm, x, y);
-                    // Обновление внутри диалога произойдет позже
-                }
-                else
-                {
-                    // Если превращения нет, обновляем статус (хотя UpdateBoardVisuals уже сработал для фигур)
-                    // Можно добавить подсветку выбранной клетки здесь, если нужно
                 }
 
-                // Всегда сбрасываем выделение после попытки хода
                 ClearSelection();
                 return;
             }
 
-            // Если ничего не выбрано, выбираем фигуру
             var piece = vm.Board[y, x];
-            
-            if (piece == null)
-            {
-                Console.WriteLine("Клик по пустой клетке (ничего не выбрано). Игнорируем.");
-                vm.SetStatus("Сначала выберите фигуру.");
-                return;
-            }
-
-            // Проверка: свой ли цвет?
             bool isWhiteTurn = vm.CurrentTurnText.Contains("белых");
             PieceColor currentColor = isWhiteTurn ? PieceColor.White : PieceColor.Black;
 
-            if (piece.Color == currentColor)
+            if (piece != null && piece.Color == currentColor)
             {
-                Console.WriteLine($"Выбрана своя фигура: {piece.Type}");
                 _selectedX = x;
                 _selectedY = y;
-                vm.SetStatus($"Выбрана {piece.Type} ({x},{y}). Выберите клетку для хода.");
+                vm.SetStatus($"Выбрана {piece.Type}. Куда ходим?");
             }
             else
             {
-                Console.WriteLine($"Клик по чужой фигуре: {piece.Type}. Игнорируем.");
-                vm.SetStatus("Нельзя выбрать фигуру противника.");
+                vm.SetStatus(piece == null ? "Выберите фигуру." : "Это фигура противника.");
             }
         }
 
         private void ShowPromotionDialog(MainViewModel vm, int x, int y)
         {
-            // Авто-выбор ферзя через 1 секунду
             System.Threading.Tasks.Task.Delay(1000).ContinueWith(_ => 
             {
                 Dispatcher.UIThread.Post(() => 
@@ -224,18 +220,15 @@ namespace kchess.Graphics
                     try 
                     {
                         vm.SelectPromotionPiece(PieceType.Queen);
-                        
-                        // ВАЖНО: Обновляем доску после превращения!
-                        UpdateBoardVisuals(); 
+                        UpdateBoardVisuals();
                     }
                     catch (Exception ex)
                     {
-                        vm.SetStatus($"Ошибка превращения: {ex.Message}");
+                        vm.SetStatus($"Ошибка: {ex.Message}");
                     }
                 });
             });
-            
-            vm.SetStatus("Пешка превращается в Ферзя (авто)...");
+            vm.SetStatus("Превращение в Ферзя...");
         }
 
         private void ClearSelection()
