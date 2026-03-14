@@ -152,10 +152,10 @@ namespace kchess
             // И вызови его здесь.
             
             // ПОКА ЗАГЛУШКА:
-            _engine.InitializeBoard(); // Если сделать этот метод публичным
-            MoveHistoryList.Clear();
-            RefreshProperties();
-            OnPropertyChanged(nameof(Board));
+            _engine.InitializeBoard(); // Вызываем полную перезагрузку
+            MoveHistoryList.Clear();   // Очищаем UI список
+            RefreshProperties();       // Обновляем статусы
+            OnPropertyChanged(nameof(Board)); // Сообщаем UI, что доска изменилась
         }
         
         // Нужно сделать InitializeBoard публичным в ChessEngine или добавить Reset()

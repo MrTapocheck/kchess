@@ -254,8 +254,15 @@ namespace kchess.Graphics
             if (vm != null)
             {
                 vm.NewGame();
-                BuildChessBoard(); 
+                
+                // Принудительно обновляем visuals после сброса
                 UpdateBoardVisuals();
+                
+                // Для надежности можно также вызвать BuildChessBoard(), 
+                // но это пересоздаст все контролы (дороже). 
+                // Если InitializeBoard работает верно, то UpdateBoardVisuals достаточно.
+                // Если глюк останется - раскомментируй следующую строку:
+                // BuildChessBoard(); 
             }
         }
 

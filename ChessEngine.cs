@@ -57,12 +57,34 @@ namespace kchess
 
         public void InitializeBoard()
         {
+            // 1. ПОЛНАЯ ОЧИСТКА ДОСКИ (Заполняем null каждую клетку)
+            for (int y = 0; y < 8; y++)
+            {
+                for (int x = 0; x < 8; x++)
+                {
+                    Board[y, x] = null;
+                }
+            }
+
+            // 2. Сброс всех флагов и истории
+            MoveHistory.Clear();
+            _halfMoveClock = 0;
+            _positionHistory.Clear();
+            IsGameOver = false;
+            LastStatus = "Игра началась";
+            CurrentTurn = PieceColor.White;
+            _pendingPromotionPos = null;
+            _enPassantTarget = null;
+            ResetCastlingFlags();
+
+            // 3. Расстановка пешек
             for (int i = 0; i < 8; i++)
             {
                 Board[1, i] = new Pawn(PieceColor.Black);
                 Board[6, i] = new Pawn(PieceColor.White);
             }
 
+            // 4. Расстановка фигур
             var backRowTypes = new PieceType[] 
             { 
                 PieceType.Rook, PieceType.Knight, PieceType.Bishop, PieceType.Queen, 
@@ -75,20 +97,8 @@ namespace kchess
                 Board[7, i] = CreatePiece(PieceColor.White, backRowTypes[i]);
             }
             
-            
-            // Добавь очистку истории:
-            MoveHistory.Clear();
-            _halfMoveClock = 0;
-            _positionHistory.Clear();
-            IsGameOver = false;
-            LastStatus = "Игра началась";
-            CurrentTurn = PieceColor.White;
-            
-            ResetCastlingFlags();
-            _enPassantTarget = null;
-            _pendingPromotionPos = null;
-            
-            RecordPosition(); // Записать начальную позицию
+            // 5. Запись начальной позиции
+            RecordPosition();
         }
 
         private void ResetCastlingFlags()
