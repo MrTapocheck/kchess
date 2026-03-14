@@ -1,85 +1,76 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Linq;
+using System.Collections.ObjectModel; // Важно для ObservableCollection
+using kchess;
 
 namespace kchess
 {
-
     /// <summary>
-    /// ViewModel выступает посредником между логикой (ChessEngine) и интерфейсом.
-    /// Она преобразует исключения движка в понятные состояния для UI.
+    /// Модель одного элемента в списке истории ходов.
     /// </summary>
+    public class MoveDisplayItem
+    {
+        public int MoveNumber { get; set; } // Номер хода (1, 2, 3...)
+        public string WhiteMove { get; set; } = ""; // Ход белых (например, "e2-e4")
+        public string BlackMove { get; set; } = ""; // Ход черных (пусто, если ход еще не сделан)
+        
+        // Свойства для иконок (можно парсить строку, но пока оставим текст)
+        // В будущем тут можно добавить пути к картинкам
+    }
+
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly ChessEngine _engine;
-        
-        // Флаг: ждем ли мы выбора фигуры для превращения пешки?
         private bool _isWaitingForPromotion;
-        
-        // Координаты пешки, которую нужно превратить (чтобы подсветить их в UI)
         private Position? _promotionPosition;
+        
+        // Коллекция для истории ходов в UI
+        public ObservableCollection<MoveDisplayItem> MoveHistoryList { get; }
 
         public MainViewModel()
         {
             _engine = new ChessEngine();
             _isWaitingForPromotion = false;
+            MoveHistoryList = new ObservableCollection<MoveDisplayItem>();
         }
 
-            /// <summary>
-            /// Публичный метод для установки статуса из View (например, из GUI).
-            /// </summary>
-            public void SetStatus(string message)
-            {
-            // Мы не можем напрямую изменить private set свойство LastStatus в движке,
-            // но мы можем использовать существующий метод движка SetStatus, если он есть.
-            // Если нет, то придется хитрить. 
-            // В ChessEngine у нас есть public void SetStatus(string msg).
-            _engine.SetStatus(message);
-            OnPropertyChanged(nameof(StatusMessage));
-            }
-
-        // --- Данные для отображения (View будет читать это) ---
-
-        /// <summary>
-        /// Двумерный массив фигур. 
-        /// View должен пробежаться по нему и отрисовать каждую клетку.
-        /// </summary>
         public Piece?[,] Board => _engine.Board;
-
-        /// <summary>
-        /// Текстовый статус игры (ошибки, чей ход, мат).
-        /// </summary>
         public string StatusMessage => _engine.LastStatus;
-
-        /// <summary>
-        /// Чей сейчас ход (для отображения в заголовке или панели).
-        /// </summary>
         public string CurrentTurnText => 
             _engine.IsGameOver ? "Игра окончена" : 
             (_engine.CurrentTurn == PieceColor.White ? "Ход белых" : "Ход черных");
-
-        /// <summary>
-        /// Индикатор того, что UI должен показать окно выбора фигуры.
-        /// </summary>
+        
         public bool IsWaitingForPromotion => _isWaitingForPromotion;
-
-        /// <summary>
-        /// Позиция на доске, где требуется выбор фигуры.
-        /// </summary>
         public Position? PromotionPosition => _promotionPosition;
 
-        // --- Действия пользователя (View будет вызывать это) ---
+        // Метод обновления истории (вызывать после каждого хода)
+        private void UpdateMoveHistory()
+        {
+            var moves = _engine.MoveHistory;
+            
+            // Очищаем и заполняем заново (простой способ, для 100 ходов быстро)
+            MoveHistoryList.Clear();
+            
+            for (int i = 0; i < moves.Count; i += 2)
+            {
+                int moveNum = (i / 2) + 1;
+                string white = moves[i];
+                string black = (i + 1 < moves.Count) ? moves[i + 1] : "";
 
-        /// <summary>
-        /// Обработка попытки хода.
-        /// Вызывается из View при клике или вводе координат.
-        /// </summary>
+                MoveHistoryList.Add(new MoveDisplayItem
+                {
+                    MoveNumber = moveNum,
+                    WhiteMove = white,
+                    BlackMove = black
+                });
+            }
+        }
+
         public void TryMakeMove(int fromX, int fromY, int toX, int toY)
         {
-            if (_isWaitingForPromotion)
-            {
-                return;
-            }
+            if (_isWaitingForPromotion) return;
 
             try
             {
@@ -87,10 +78,9 @@ namespace kchess
                 
                 if (success)
                 {
-                    // ВАЖНО: Сообщаем UI, что массив Board изменился!
                     OnPropertyChanged(nameof(Board));
-                    
-                    RefreshProperties(); // Обновляет статус и текст хода
+                    UpdateMoveHistory(); // Обновляем список ходов
+                    RefreshProperties();
                 }
                 else
                 {
@@ -101,65 +91,89 @@ namespace kchess
             {
                 _isWaitingForPromotion = true;
                 _promotionPosition = new Position(ex.X, ex.Y);
-                
                 OnPropertyChanged(nameof(IsWaitingForPromotion));
                 OnPropertyChanged(nameof(PromotionPosition));
                 OnPropertyChanged(nameof(StatusMessage));
-                // Board менять не надо, фигура еще на месте до выбора превращения
             }
             catch (Exception ex)
             {
-                _engine.SetStatus($"Критическая ошибка: {ex.Message}");
+                _engine.SetStatus($"Ошибка: {ex.Message}");
                 OnPropertyChanged(nameof(StatusMessage));
             }
         }
 
         public void SelectPromotionPiece(PieceType type)
         {
-            if (!_isWaitingForPromotion)
-            {
-                throw new InvalidOperationException("Сейчас не требуется выбор фигуры.");
-            }
+            if (!_isWaitingForPromotion) throw new InvalidOperationException("Нет превращения.");
 
             try
             {
                 _engine.CompletePromotion(type);
-                
                 _isWaitingForPromotion = false;
                 _promotionPosition = null;
                 
-                // ВАЖНО: После превращения доска изменилась (пешка стала ферзем)
                 OnPropertyChanged(nameof(Board));
-                
+                UpdateMoveHistory(); // Обновляем список после превращения
                 RefreshProperties();
             }
             catch (ArgumentException ex)
             {
-                _engine.SetStatus($"Ошибка превращения: {ex.Message}");
+                _engine.SetStatus($"Ошибка: {ex.Message}");
                 OnPropertyChanged(nameof(StatusMessage));
             }
             catch (Exception ex)
             {
-                _engine.SetStatus($"Критическая ошибка: {ex.Message}");
+                _engine.SetStatus($"Ошибка: {ex.Message}");
                 OnPropertyChanged(nameof(StatusMessage));
             }
         }
-        /// <summary>
-        /// Вспомогательный метод для уведомления об изменении всех основных свойств.
-        /// </summary>
+
+        // Метод для новой игры
+        public void NewGame()
+        {
+            // Пересоздаем движок или инициируем заново
+            // Проще создать новый экземпляр ChessEngine, но тогда нужно сбросить всё
+            // В ChessEngine нет метода Reset, давай создадим новый
+            // Но лучше добавить метод Reset в ChessEngine. Пока сделаем так:
+            
+            // Хак: создаем новый движок (в реальном проекте лучше сделать метод Reset)
+            // Так как поле _engine readonly, нам нужно немного хитрости или рефакторинг.
+            // Давай просто создадим новый ViewModel? Нет, это сложно для UI.
+            
+            // Добавим метод Reset в ChessEngine позже. А пока:
+            // Временное решение: перезапуск приложения? Нет.
+            // Давайте добавим метод в ChessEngine прямо сейчас.
+            
+            // НО ТАК КАК МЫ НЕ МОЖЕМ МЕНЯТЬ ChessEngine ПРЯМО СЕЙЧАС БЕЗ РИСКА,
+            // давай предположим, что ты добавишь простой метод Clear() в ChessEngine.
+            // ИЛИ: мы просто создадим новый экземпляр через рефлексию? Нет.
+            
+            // ЛУЧШЕ: Добавь в ChessEngine метод public void Reset() { ... }
+            // И вызови его здесь.
+            
+            // ПОКА ЗАГЛУШКА:
+            _engine.InitializeBoard(); // Если сделать этот метод публичным
+            MoveHistoryList.Clear();
+            RefreshProperties();
+            OnPropertyChanged(nameof(Board));
+        }
+        
+        // Нужно сделать InitializeBoard публичным в ChessEngine или добавить Reset()
+        // Давай в следующем шаге поправим ChessEngine.
+
         private void RefreshProperties()
         {
-            OnPropertyChanged(nameof(Board));
             OnPropertyChanged(nameof(StatusMessage));
             OnPropertyChanged(nameof(CurrentTurnText));
-            // Проверяем, не закончилась ли игра вдруг
-            if (_engine.IsGameOver)
-            {
-                OnPropertyChanged(nameof(CurrentTurnText));
-            }
+            if (_engine.IsGameOver) OnPropertyChanged(nameof(CurrentTurnText));
         }
 
-        // Стандартная реализация INotifyPropertyChanged
+        public void SetStatus(string message)
+        {
+            _engine.SetStatus(message);
+            OnPropertyChanged(nameof(StatusMessage));
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
         {

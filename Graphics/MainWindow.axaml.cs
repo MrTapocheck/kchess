@@ -231,6 +231,18 @@ namespace kchess.Graphics
             vm.SetStatus("Превращение в Ферзя...");
         }
 
+        private void NewGame_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var vm = this.DataContext as MainViewModel;
+            if (vm != null)
+            {
+                vm.NewGame();
+                // Перерисовать доску после сброса
+                BuildChessBoard(); 
+                UpdateBoardVisuals();
+            }
+        }
+        
         private void ClearSelection()
         {
             _selectedX = null;
