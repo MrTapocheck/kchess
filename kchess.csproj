@@ -26,6 +26,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.0.6" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.0.6" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.6" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.6" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.6" />
+  </ItemGroup>
+
   <!-- Пока убираем все пакеты Avalonia, они ломают сборку без XAML файлов -->
   <!-- Когда вернем GUI, раскомментируем или добавим их обратно -->
 
