@@ -2,24 +2,22 @@ using System;
 using System.Collections.Generic; 
 using Avalonia; 
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Media.Imaging; // <--- ДОБАВЛЕНО: Нужно для Bitmap
+using Avalonia.Media.Imaging;
 using Avalonia.Data; 
 using Avalonia.Threading; 
 using Avalonia.Input; 
 using kchess; 
 using kchess.Graphics;
-using Avalonia.Platform; // для ресурсов
+using Avalonia.Platform;
 
 namespace kchess.Graphics
 {
     public partial class MainWindow : Window
     {
-        // Старые конвертеры удалены, так как мы грузим картинки вручную
-        
         private readonly List<Border> _cells = new List<Border>();
-        // Список картинок можно не хранить отдельно, если мы берем их из cell.Child, но оставим для удобства
         private readonly List<Image> _images = new List<Image>(); 
 
         private int? _selectedX;
@@ -29,6 +27,40 @@ namespace kchess.Graphics
         {
             InitializeComponent();
             this.Opened += (s, e) => BuildChessBoard();
+
+            var settingsBtn = this.FindControl<Button>("SettingsButton");
+            var settingsPopup = this.FindControl<Popup>("SettingsPopup");
+
+            if (settingsBtn != null && settingsPopup != null)
+            {
+                // Метод для проверки: закрыть, только если курсора нет НИ на кнопке, НИ на меню
+                void UpdatePopupState()
+                {
+                    bool isOverButton = settingsBtn.IsPointerOver;
+                    bool isOverPopup = settingsPopup.IsPointerOver;
+                    
+                    // Если курсор ушел отовсюду - закрываем
+                    if (!isOverButton && !isOverPopup)
+                    {
+                        settingsPopup.IsOpen = false;
+                    }
+                    // Иначе (если курсор где-то есть) - держим открытым
+                    else
+                    {
+                        settingsPopup.IsOpen = true;
+                    }
+                }
+
+                // Подписываемся на все возможные события ухода/прихода мыши
+                settingsBtn.PointerEntered += (s, e) => UpdatePopupState();
+                settingsBtn.PointerExited += (s, e) => UpdatePopupState();
+                
+                settingsPopup.PointerEntered += (s, e) => UpdatePopupState();
+                settingsPopup.PointerExited += (s, e) => UpdatePopupState();
+                
+                // Дополнительно: если вдруг клик прошел мимо (на основное окно), тоже закрыть
+                // Но для простоты пока оставим только ховер-логику.
+            }
         }
 
         private void BuildChessBoard()
@@ -61,7 +93,6 @@ namespace kchess.Graphics
                     var cellColor = isDark ? Color.Parse("#769656") : Color.Parse("#F0D9B5");
                     cellBorder.Background = new SolidColorBrush(cellColor);
 
-                    // Создаем Image вместо TextBlock
                     var pieceImage = new Image
                     {
                         Name = $"PieceImage_{x}_{y}",
@@ -71,12 +102,6 @@ namespace kchess.Graphics
                         MaxWidth = 50,
                         MaxHeight = 50
                     };
-
-                    // ВАЖНО: МЫ УБРАЛИ ПРИВЯЗКУ (BINDING) ЧЕРЕЗ КОНВЕРТЕРЫ, ТАК КАК ОНИ УДАЛЕНЫ ИЛИ НЕ НУЖНЫ.
-                    // МЫ БУДЕМ ОБНОВЛЯТЬ КАРТИНКИ ВРУЧНУЮ ЧЕРЕЗ UpdateBoardVisuals.
-                    // Если хочешь оставить привязку для начальной отрисовки, нужно создать новый конвертер, 
-                    // но ручное обновление надежнее для массивов.
-                    // Поэтому просто оставляем pieceImage.Source = null (по умолчанию).
 
                     cellBorder.Child = pieceImage;
                     
@@ -93,7 +118,6 @@ namespace kchess.Graphics
                 }
             }
             
-            // Первоначальная отрисовка фигур после создания доски
             UpdateBoardVisuals();
         }
 
@@ -140,17 +164,10 @@ namespace kchess.Graphics
                                 
                                 try 
                                 {
-                                    // Формируем относительный путь внутри сборки
-                                    // Путь должен начинаться со слэша и указывать на папку Assets
                                     string assetPath = $"/Graphics/Assets/{fileName}";
-                                    
-                                    // Создаем URI для ресурса
                                     var uri = new Uri($"avares://kchess{assetPath}");
                                     
-                                    // Открываем поток через AssetLoader
                                     using var stream = AssetLoader.Open(uri);
-                                    
-                                    // Загружаем Bitmap из потока
                                     image.Source = new Bitmap(stream);
                                 }
                                 catch (Exception ex)
@@ -237,16 +254,15 @@ namespace kchess.Graphics
             if (vm != null)
             {
                 vm.NewGame();
-                // Перерисовать доску после сброса
                 BuildChessBoard(); 
                 UpdateBoardVisuals();
             }
         }
-        
+
         private void ClearSelection()
         {
             _selectedX = null;
             _selectedY = null;
         }
-    }
-}
+    } // <--- Конец класса MainWindow
+} // <--- Конец namespace

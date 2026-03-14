@@ -3,72 +3,109 @@
         xmlns:vm="using:kchess"
         x:Class="kchess.Graphics.MainWindow"
         Title="kchess"
-        Width="900" Height="700"
+        Width="1000" Height="750"
         WindowStartupLocation="CenterScreen"
         x:DataType="vm:MainViewModel">
 
-    <Grid ColumnDefinitions="*,300" Margin="10">
-        
-        <!-- ЛЕВАЯ ЧАСТЬ: Доска -->
-        <Border Grid.Column="0" Background="#333" CornerRadius="5" Padding="5">
-            <Grid x:Name="ChessBoardGrid" 
-                  ColumnDefinitions="*,*,*,*,*,*,*,*" 
-                  RowDefinitions="*,*,*,*,*,*,*,*"/>
-        </Border>
-
-        <!-- ПРАВАЯ ЧАСТЬ: Панель управления -->
-        <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="10">
+    <Grid>
+        <!-- Основная сетка -->
+        <Grid ColumnDefinitions="*,320" Margin="10">
+            <!-- ... (твоя старая разметка доски и панели остается без изменений) ... -->
+            <!-- Я сократил этот блок для краткости, оставь его как был -->
+             <Border Grid.Column="0" Background="#333" CornerRadius="5" Padding="5">
+                <Grid x:Name="ChessBoardGrid" ColumnDefinitions="*,*,*,*,*,*,*,*" RowDefinitions="*,*,*,*,*,*,*,*"/>
+            </Border>
             
-            <!-- Статус игры -->
-            <Border Background="#444" CornerRadius="5" Padding="15">
-                <TextBlock Text="{Binding StatusMessage}" 
-                           FontSize="18" 
-                           FontWeight="Bold" 
-                           TextAlignment="Center"
-                           TextWrapping="Wrap"
-                           VerticalAlignment="Center"/>
-            </Border>
-
-            <!-- Кнопки управления -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                <Button Content="Новая игра" Click="NewGame_Click" Padding="10,5"/>
-                <!-- Кнопку отмены пока закомментируем, пока не реализуем Undo в движке -->
-                <!-- <Button Content="Отменить" Padding="10,5"/> -->
+            <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="10">
+                <Border Background="#444" CornerRadius="5" Padding="15">
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="18" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap"/>
+                </Border>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                    <Button Content="Новая игра" Click="NewGame_Click" Padding="10,5"/>
+                </StackPanel>
+                <TextBlock Text="История ходов" FontSize="16" FontWeight="Bold" Margin="0,10,0,5"/>
+                <Border Background="#2a2a2a" CornerRadius="5" Padding="5" VerticalAlignment="Stretch">
+                    <ListBox ItemsSource="{Binding MoveHistoryList}" Background="Transparent" BorderThickness="0">
+                         <!-- Шаблон списка как был -->
+                         <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="40,*,*" Margin="2">
+                                    <TextBlock Grid.Column="0" Text="{Binding MoveNumber}" FontWeight="Bold" Foreground="#aaa"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding WhiteMove}" Foreground="White" Margin="5,0"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding BlackMove}" Foreground="White" Margin="5,0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
             </StackPanel>
+        </Grid>
 
-            <!-- Заголовок истории -->
-            <TextBlock Text="История ходов" FontSize="16" FontWeight="Bold" Margin="0,10,0,5"/>
+        <!-- КОНТЕЙНЕР ДЛЯ НАСТРОЕК (Правый верхний угол) -->
+        <Grid HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20">
+            
+            <!-- Кнопка шестеренки -->
+            <Button x:Name="SettingsButton" 
+                    Width="40" Height="40"
+                    Background="Transparent" BorderThickness="0"
+                    ToolTip.Tip="Настройки">
+                <Path Data="M19.14,12.94C19.16,12.78 19.16,12.61 19.16,12.44C19.16,12.27 19.16,12.11 19.14,11.94L21.41,10.16C21.62,10 21.69,9.69 21.53,9.48L19.38,5.76C19.22,5.55 18.91,5.48 18.7,5.64L16.03,6.71C15.5,6.3 14.92,5.95 14.3,5.68L13.9,2.81C13.87,2.58 13.67,2.41 13.44,2.41H9.12C8.89,2.41 8.69,2.58 8.66,2.81L8.26,5.68C7.64,5.95 7.06,6.3 6.53,6.71L3.86,5.64C3.65,5.48 3.34,5.55 3.18,5.76L1.03,9.48C0.87,9.69 0.94,10 1.15,10.16L3.42,11.94C3.4,12.11 3.4,12.27 3.4,12.44C3.4,12.61 3.4,12.78 3.42,12.94L1.15,14.72C0.94,14.88 0.87,15.19 1.03,15.4L3.18,19.12C3.34,19.33 3.65,19.4 3.86,19.24L6.53,18.17C7.06,18.58 7.64,18.93 8.26,19.2L8.66,22.07C8.69,22.3 8.89,22.47 9.12,22.47H13.44C13.67,22.47 13.87,22.3 13.9,22.07L14.3,19.2C14.92,18.93 15.5,18.58 16.03,18.17L18.7,19.24C18.91,19.4 19.22,19.33 19.38,19.12L21.53,15.4C21.69,15.19 21.62,14.88 21.41,14.72L19.14,12.94M11.28,15.28A2.84,2.84 0 1,1 14.12,12.44A2.84,2.84 0 0,1 11.28,15.28Z"
+                      Fill="#CCCCCC" Stretch="Uniform" Width="24" Height="24"/>
+            </Button>
 
-            <!-- Список ходов -->
-            <Border Background="#2a2a2a" CornerRadius="5" Padding="5">
-                <ListBox ItemsSource="{Binding MoveHistoryList}" 
-                         Background="Transparent"
-                         BorderThickness="0">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid ColumnDefinitions="40,*,*" Margin="2">
-                                <!-- Номер хода -->
-                                <TextBlock Grid.Column="0" 
-                                           Text="{Binding MoveNumber}" 
-                                           FontWeight="Bold"
-                                           Foreground="#aaa"/>
-                                
-                                <!-- Ход белых -->
-                                <TextBlock Grid.Column="1" 
-                                           Text="{Binding WhiteMove}" 
-                                           Foreground="White"
-                                           Margin="5,0"/>
-                                
-                                <!-- Ход черных -->
-                                <TextBlock Grid.Column="2" 
-                                           Text="{Binding BlackMove}" 
-                                           Foreground="White"
-                                           Margin="5,0"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Border>
-        </StackPanel>
+            <!-- Всплывающее меню (Popup) -->
+            <!-- PlacementTarget привязывает его к кнопке -->
+            <!-- Всплывающее меню (Popup) -->
+            <Popup x:Name="SettingsPopup" 
+                   PlacementTarget="{Binding #SettingsButton}" 
+                   Placement="Bottom" 
+                   HorizontalOffset="-150"
+                   IsOpen="False"> <!-- Явно задаем закрытое состояние по умолчанию -->
+                
+                <Border Background="#2D2D30" CornerRadius="8" Padding="15" 
+                        BorderBrush="#444" BorderThickness="1"
+                        BoxShadow="0 4 10 0 #00000040">
+                    <!-- Содержимое меню (кнопки и текст) -->
+                    <StackPanel Width="220" Spacing="15">
+                        <TextBlock Text="Настройки" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                        
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🎨" FontSize="16"/>
+                            <TextBlock Text="Themes" Foreground="White"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="5" Margin="20,0,0,0">
+                            <Button Content="Dark" Width="60" Padding="5" FontSize="12"/>
+                            <Button Content="Light" Width="60" Padding="5" FontSize="12"/>
+                            <Button Content="Custom" Width="60" Padding="5" FontSize="12"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🌐" FontSize="16"/>
+                            <TextBlock Text="Language" Foreground="White"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="5" Margin="20,0,0,0">
+                            <Button Content="RU" Width="50" Padding="5" FontSize="12"/>
+                            <Button Content="EN" Width="50" Padding="5" FontSize="12"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="♟️" FontSize="16"/>
+                            <TextBlock Text="Piece Skins" Foreground="White"/>
+                        </StackPanel>
+                        <ComboBox Width="180" HorizontalAlignment="Left" FontSize="12">
+                            <ComboBoxItem Content="Classic" IsSelected="True"/>
+                            <ComboBoxItem Content="Wooden"/>
+                            <ComboBoxItem Content="Metal"/>
+                        </ComboBox>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="💡" FontSize="16"/>
+                            <TextBlock Text="Show Hints" Foreground="White"/>
+                        </StackPanel>
+                        <ToggleButton HorizontalAlignment="Left" Margin="20,0,0,0" IsChecked="True" Content="On"/>
+                    </StackPanel>
+                </Border>
+            </Popup>
+        </Grid>
     </Grid>
 </Window>
