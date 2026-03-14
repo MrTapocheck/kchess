@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:kchess"
+        x:Class="kchess.Graphics.MainWindow"
+        Title="kchess"
+        Width="500" Height="600"
+        WindowStartupLocation="CenterScreen"
+        x:DataType="vm:MainViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10">
+        <TextBlock Grid.Row="0" 
+                   Text="{Binding CurrentTurnText}" 
+                   FontSize="20" 
+                   FontWeight="Bold" 
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,10"/>
+
+        <Border Grid.Row="1" Background="#333" CornerRadius="5" Padding="5">
+            <Grid x:Name="ChessBoardGrid" 
+                  ColumnDefinitions="*,*,*,*,*,*,*,*" 
+                  RowDefinitions="*,*,*,*,*,*,*,*"/>
+        </Border>
+
+        <TextBlock Grid.Row="2" 
+                   Text="{Binding StatusMessage}" 
+                   FontSize="14" 
+                   Foreground="Gray" 
+                   HorizontalAlignment="Center"
+                   Margin="0,10,0,0"
+                   TextWrapping="Wrap"/>
+    </Grid>
+</Window>

@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace kchess
 {
+
     /// <summary>
     /// ViewModel выступает посредником между логикой (ChessEngine) и интерфейсом.
     /// Она преобразует исключения движка в понятные состояния для UI.
@@ -23,6 +24,19 @@ namespace kchess
             _engine = new ChessEngine();
             _isWaitingForPromotion = false;
         }
+
+            /// <summary>
+            /// Публичный метод для установки статуса из View (например, из GUI).
+            /// </summary>
+            public void SetStatus(string message)
+            {
+            // Мы не можем напрямую изменить private set свойство LastStatus в движке,
+            // но мы можем использовать существующий метод движка SetStatus, если он есть.
+            // Если нет, то придется хитрить. 
+            // В ChessEngine у нас есть public void SetStatus(string msg).
+            _engine.SetStatus(message);
+            OnPropertyChanged(nameof(StatusMessage));
+            }
 
         // --- Данные для отображения (View будет читать это) ---
 
@@ -62,53 +76,44 @@ namespace kchess
         /// </summary>
         public void TryMakeMove(int fromX, int fromY, int toX, int toY)
         {
-            // Если мы в режиме выбора фигуры, обычные ходы блокируются
             if (_isWaitingForPromotion)
             {
-                // Можно добавить звук ошибки или игнорировать
                 return;
             }
 
             try
             {
-                // Пытаемся сделать ход в движке
                 bool success = _engine.TryMove(fromX, fromY, toX, toY);
                 
                 if (success)
                 {
-                    // Ход успешен, обновляем интерфейс
-                    RefreshProperties();
+                    // ВАЖНО: Сообщаем UI, что массив Board изменился!
+                    OnPropertyChanged(nameof(Board));
+                    
+                    RefreshProperties(); // Обновляет статус и текст хода
                 }
                 else
                 {
-                    // Ход недопустим (движок вернул false), обновляем только статус с ошибкой
                     OnPropertyChanged(nameof(StatusMessage));
                 }
             }
             catch (PawnPromotionRequiredException ex)
             {
-                // Движок выбросил исключение: пешка дошла до края!
                 _isWaitingForPromotion = true;
                 _promotionPosition = new Position(ex.X, ex.Y);
                 
                 OnPropertyChanged(nameof(IsWaitingForPromotion));
                 OnPropertyChanged(nameof(PromotionPosition));
                 OnPropertyChanged(nameof(StatusMessage));
+                // Board менять не надо, фигура еще на месте до выбора превращения
             }
             catch (Exception ex)
             {
-                // Этот блок никогда не выполнится, так как первый catch(Exception) перехватит всё.
-                // Нужно убрать дубликат или сделать более специфичным первый блок.
-                // Но пока оставим как есть, просто исправим вызов:
-                _engine.SetStatus($"Ошибка: {ex.Message}");
+                _engine.SetStatus($"Критическая ошибка: {ex.Message}");
                 OnPropertyChanged(nameof(StatusMessage));
             }
         }
 
-        /// <summary>
-        /// Выбор фигуры для превращения пешки.
-        /// Вызывается когда пользователь кликнул на иконку (Ферзь, Ладья и т.д.) в UI.
-        /// </summary>
         public void SelectPromotionPiece(PieceType type)
         {
             if (!_isWaitingForPromotion)
@@ -118,18 +123,18 @@ namespace kchess
 
             try
             {
-                // Передаем выбор в движок
                 _engine.CompletePromotion(type);
                 
-                // Превращение успешно, выходим из режима ожидания
                 _isWaitingForPromotion = false;
                 _promotionPosition = null;
+                
+                // ВАЖНО: После превращения доска изменилась (пешка стала ферзем)
+                OnPropertyChanged(nameof(Board));
                 
                 RefreshProperties();
             }
             catch (ArgumentException ex)
             {
-                // Пользователь выбрал пешку или короля (недопустимо)
                 _engine.SetStatus($"Ошибка превращения: {ex.Message}");
                 OnPropertyChanged(nameof(StatusMessage));
             }
@@ -139,7 +144,6 @@ namespace kchess
                 OnPropertyChanged(nameof(StatusMessage));
             }
         }
-
         /// <summary>
         /// Вспомогательный метод для уведомления об изменении всех основных свойств.
         /// </summary>
