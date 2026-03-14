@@ -33,8 +33,8 @@ namespace kchess.Graphics
             InitializeComponent();
             this.Opened += (s, e) => BuildChessBoard();
             
-            // Инициализация элементов и таймера
-            InitializeSettingsLogic();
+            // Вся логика меню теперь в XAML через Binding!
+            // Ничего добавлять сюда не нужно.
         }
 
         private void InitializeSettingsLogic()
