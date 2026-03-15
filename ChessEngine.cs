@@ -390,9 +390,12 @@ namespace kchess
                 else { LastStatus = "Недопустимый ход (взятие на проходе невозможно)"; return false; }
             }
 
+            // --- ПРОВЕРКА НА РОКИРОВКУ ---
             if (isCastlingAttempt)
             {
                 bool kingside = toX > fromX;
+                
+                // Проверка флагов
                 if (CurrentTurn == PieceColor.White)
                 {
                     if (_whiteKingMoved) { LastStatus = "Король уже ходил"; return false; }
@@ -412,21 +415,62 @@ namespace kchess
                 int rookFromX = kingside ? 7 : 0;
                 int rookToX = kingside ? 5 : 3;
                 
-                for (int x = fromX + step; x != (kingside ? toX + 1 : -1); x += step)
+                // === ИСПРАВЛЕННАЯ ПРОВЕРКА ПУТИ ===
+                // Проверяем клетки МЕЖДУ королем и финальной позицией короля + клетку под ладьей (для ферзевого фланга)
+                // Для O-O: проверяем f1, g1.
+                // Для O-O-O: проверяем d1, c1, b1 (важно проверить b1, так как ладья прыгает через неё, но король идет только до c1).
+                // Стоп! Король идет на c1. Путь короля: d1, c1? Нет, король идет e1->c1. Клетки прохода: d1.
+                // Но ладья идет a1->d1. Ей нужны свободные b1, c1, d1.
+                // Правило: все клетки между королем и ладьей должны быть пусты.
+                
+                int startCheckX = kingside ? fromX + 1 : rookFromX + 1;
+                int endCheckX = kingside ? toX : fromX - 1; 
+                // Пояснение:
+                // Kingside: от f1 (4+1) до g1 (6). Цикл: 5, 6.
+                // Queenside: от b1 (0+1) до d1 (4-1). Цикл: 1, 2, 3. (b1, c1, d1). Это верно! Ладья должна пройти их все.
+
+                for (int x = startCheckX; x <= endCheckX; x++) // Используем явный диапазон
                 {
-                    if (Board[fromY, x] != null) { LastStatus = "Путь заблокирован"; return false; }
-                    if (x != toX && IsSquareAttacked(x, fromY, CurrentTurn == PieceColor.White ? PieceColor.Black : PieceColor.White))
+                    // Важно: направление цикла зависит от step, но проще идти от мин к макс если мы вычислили границы верно
+                    // Но так как startCheckX < endCheckX всегда при нашей логике выше, идем просто ++
+                    
+                    if (Board[fromY, x] != null) 
+                    { 
+                        LastStatus = $"Путь заблокирован фигурой на {(char)('a' + x)}{8-fromY}"; 
+                        return false; 
+                    }
+                    
+                    // Проверка на атакованность поля (король не может проходить через шах)
+                    // Примечание: для ладьи проверка шаха не нужна, только для путей короля.
+                    // Путь короля:
+                    // Kingside: f1, g1.
+                    // Queenside: d1, c1. (b1 проверять на шах не нужно, там король не ступает).
+                    
+                    bool isKingPath = true;
+                    if (!kingside && x == rookFromX + 1) isKingPath = false; // b1 не входит в путь короля
+
+                    if (isKingPath && IsSquareAttacked(x, fromY, CurrentTurn == PieceColor.White ? PieceColor.Black : PieceColor.White))
                     {
-                        LastStatus = "Поле под ударом"; return false;
+                        LastStatus = $"Поле {(char)('a' + x)}{8-fromY} под ударом"; 
+                        return false;
                     }
                 }
                 
+                // Финальная проверка наличия ладьи
                 if (Board[fromY, rookFromX] == null || Board[fromY, rookFromX].Type != PieceType.Rook)
                 {
-                    LastStatus = "Ладья отсутствует"; return false;
+                    LastStatus = "Ладья отсутствует"; 
+                    return false;
+                }
+                
+                // Дополнительная проверка: ладья не должна была ходить (уже было выше, но на всякий случай)
+                // И ладья должна быть своего цвета (косвенно проверяется флагами, но лучше явно)
+                if (Board[fromY, rookFromX].Color != CurrentTurn)
+                {
+                     LastStatus = "Чужая ладья?"; return false;
                 }
             }
-
+            
             var capturedPiece = Board[toY, toX];
             var movingPiece = Board[fromY, fromX];
             

@@ -96,51 +96,119 @@ namespace kchess.Graphics
 
         private void BuildChessBoard()
         {
-            // ... (твой старый код BuildChessBoard без изменений) ...
             var grid = this.FindControl<Grid>("ChessBoardGrid");
             if (grid == null) return;
+
             grid.Children.Clear();
             _cells.Clear();
             _images.Clear();
-            for (int y = 0; y < 8; y++)
+
+            const int BoardSize = 8;
+            
+            // Цвета для координат
+            var DarkCoordColor = Color.Parse("#F0D9B5"); 
+            var LightCoordColor = Color.Parse("#769656"); 
+            
+            string[] files = { "a", "b", "c", "d", "e", "f", "g", "h" };
+
+            grid.ColumnDefinitions.Clear();
+            grid.RowDefinitions.Clear();
+
+            for (int i = 0; i < BoardSize; i++)
             {
-                for (int x = 0; x < 8; x++)
+                grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+                grid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+            }
+
+            for (int y = 0; y < BoardSize; y++)
+            {
+                for (int x = 0; x < BoardSize; x++)
                 {
                     int currentX = x;
                     int currentY = y;
+
                     var cellBorder = new Border
                     {
                         [Grid.ColumnProperty] = currentX,
                         [Grid.RowProperty] = currentY,
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch,
-                        Padding = new Thickness(0),
                         Tag = $"{currentX},{currentY}"
                     };
+
                     bool isDark = (currentX + currentY) % 2 == 1;
                     var cellColor = isDark ? Color.Parse("#769656") : Color.Parse("#F0D9B5");
                     cellBorder.Background = new SolidColorBrush(cellColor);
+
+                    // Создаем контейнер Grid ВНУТРИ клетки сразу
+                    var contentGrid = new Grid();
+                    cellBorder.Child = contentGrid;
+
+                    // Определяем цвет текста
+                    var coordColor = isDark ? DarkCoordColor : LightCoordColor;
+                    var brush = new SolidColorBrush(coordColor);
+
+                    // 1. БУКВА (снизу слева) - только для нижнего ряда (y == 7)
+                    if (y == BoardSize - 1) 
+                    {
+                        var fileLabel = new TextBlock
+                        {
+                            Text = files[currentX],
+                            FontSize = 12,
+                            FontWeight = FontWeight.Bold,
+                            Foreground = brush,
+                            HorizontalAlignment = HorizontalAlignment.Left,
+                            VerticalAlignment = VerticalAlignment.Bottom,
+                            Margin = new Thickness(2, 0, 0, 2),
+                            IsHitTestVisible = false
+                        };
+                        contentGrid.Children.Add(fileLabel);
+                    }
+
+                    // 2. ЦИФРА (справа сверху) - только для правого края (x == 7)
+                    if (currentX == BoardSize - 1)
+                    {
+                        int rankNumber = BoardSize - y;
+                        
+                        var rankLabel = new TextBlock
+                        {
+                            Text = rankNumber.ToString(),
+                            FontSize = 12,
+                            FontWeight = FontWeight.Bold,
+                            Foreground = brush,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            VerticalAlignment = VerticalAlignment.Top,
+                            Margin = new Thickness(0, 2, 2, 0),
+                            IsHitTestVisible = false
+                        };
+                        contentGrid.Children.Add(rankLabel);
+                    }
+                    
+                    // 3. ФИГУРА
                     var pieceImage = new Image
                     {
                         Name = $"PieceImage_{x}_{y}",
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
                         Stretch = Stretch.Uniform,
-                        MaxWidth = 50,
-                        MaxHeight = 50
+                        IsHitTestVisible = false
                     };
-                    cellBorder.Child = pieceImage;
-                    cellBorder.PointerReleased += (s, e) => 
+                    contentGrid.Children.Add(pieceImage);
+
+                    // Обработчик клика
+                    cellBorder.PointerReleased += (s, e) =>
                     {
                         if (e.InitialPressMouseButton == MouseButton.Left)
                             OnCellClicked(currentX, currentY);
                     };
-                    cellBorder.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+                    cellBorder.Cursor = new Cursor(StandardCursorType.Hand);
+
                     grid.Children.Add(cellBorder);
                     _cells.Add(cellBorder);
                     _images.Add(pieceImage);
                 }
             }
+
             UpdateBoardVisuals();
         }
 
@@ -151,6 +219,7 @@ namespace kchess.Graphics
         {
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
+
             foreach (var cell in _cells)
             {
                 var tag = cell.Tag?.ToString()?.Split(',');
@@ -158,36 +227,73 @@ namespace kchess.Graphics
                 {
                     int x = int.Parse(tag[0]);
                     int y = int.Parse(tag[1]);
+
                     var piece = vm.Board[y, x];
-                    var image = cell.Child as Image;
-                    if (image != null)
+                    
+                    // ИСПРАВЛЕНИЕ: Ищем Image внутри Grid, а не напрямую в Child
+                    Image? pieceImage = null;
+
+                    if (cell.Child is Grid gridContainer)
                     {
-                        if (piece == null) { image.Source = null; }
+                        // Ищем первый элемент типа Image в_children грида
+                        foreach (var child in gridContainer.Children)
+                        {
+                            if (child is Image img)
+                            {
+                                pieceImage = img;
+                                break;
+                            }
+                        }
+                    }
+                    else if (cell.Child is Image directImage)
+                    {
+                        // На случай если вернемся к старой структуре (для надежности)
+                        pieceImage = directImage;
+                    }
+
+                    if (pieceImage != null)
+                    {
+                        if (piece == null)
+                        {
+                            pieceImage.Source = null;
+                            pieceImage.IsVisible = false; // Скрываем, если фигуры нет
+                        }
                         else
                         {
+                            pieceImage.IsVisible = true;
                             string figCode = piece.Type switch
                             {
-                                PieceType.Pawn => "p", PieceType.Knight => "n", PieceType.Bishop => "b",
-                                PieceType.Rook => "r", PieceType.Queen => "q", PieceType.King => "k", _ => ""
+                                PieceType.Pawn => "p",
+                                PieceType.Knight => "n",
+                                PieceType.Bishop => "b",
+                                PieceType.Rook => "r",
+                                PieceType.Queen => "q",
+                                PieceType.King => "k",
+                                _ => ""
                             };
+
                             string colorCode = (piece.Color == PieceColor.White) ? "l" : "d";
+
                             if (!string.IsNullOrEmpty(figCode))
                             {
                                 string fileName = $"Chess_{figCode}{colorCode}t60.png";
-                                try 
+                                try
                                 {
                                     string assetPath = $"/Graphics/Assets/{fileName}";
                                     var uri = new Uri($"avares://kchess{assetPath}");
                                     using var stream = AssetLoader.Open(uri);
-                                    image.Source = new Bitmap(stream);
+                                    pieceImage.Source = new Bitmap(stream);
                                 }
                                 catch (Exception ex)
                                 {
                                     Console.WriteLine($"Ошибка загрузки картинки {fileName}: {ex.Message}");
-                                    image.Source = null;
+                                    pieceImage.Source = null;
                                 }
                             }
-                            else { image.Source = null; }
+                            else
+                            {
+                                pieceImage.Source = null;
+                            }
                         }
                     }
                 }
