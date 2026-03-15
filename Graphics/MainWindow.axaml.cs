@@ -13,11 +13,13 @@ using kchess;
 using kchess.Graphics;
 using Avalonia.Platform;
 using System.Threading; // Для Timer
+using Avalonia.Interactivity;
 
 namespace kchess.Graphics
 {
     public partial class MainWindow : Window
     {
+        private bool _isWhitePerspective = true;
         private readonly List<Border> _cells = new List<Border>();
         private readonly List<Image> _images = new List<Image>(); 
         private int? _selectedX;
@@ -28,13 +30,85 @@ namespace kchess.Graphics
         private Button? _settingsBtn;
         private Popup? _settingsPopup;
 
+        // Методы навигации
+        private void ShowMainMenu()
+        {
+            MainMenuPanel.IsVisible = true;
+            SetupPanel.IsVisible = false;
+            GamePanel.IsVisible = false;
+        }
+
+        // Обработчик кнопки "Выход" в главном меню
+        private void ExitApp_Click(object? sender, RoutedEventArgs e)
+        {
+            // Закрываем главное окно, что завершает работу приложения
+            this.Close();
+            
+            // Альтернативный способ (чтобы прям принудительно закрыть):
+            // Application.Current!.ApplicationLifetime?.Shutdown();
+        }   
+
+        private void ShowSetup()
+        {
+            MainMenuPanel.IsVisible = false;
+            SetupPanel.IsVisible = true;
+            GamePanel.IsVisible = false;
+        }
+
+        private void StartGame(bool isWhite)
+        {
+            _isWhitePerspective = isWhite;
+            
+            // Инициализируем новую игру в ViewModel
+            var vm = this.DataContext as MainViewModel;
+            vm?.NewGame();
+
+            // Перерисовываем доску с учетом перспективы
+            BuildChessBoard(_isWhitePerspective);
+
+            // Переключаем интерфейс
+            SetupPanel.IsVisible = false;
+            GamePanel.IsVisible = true;
+        }
+        // Обработчик кнопки "В главное меню" из игры
+        private void BackToMenuFromGame_Click(object? sender, RoutedEventArgs e)
+        {
+            // Спрашиваем подтверждение? Пока просто выходим.
+            // Можно добавить диалог: "Вы уверены? Партия будет потеряна."
+            
+            ShowMainMenu();
+            
+            // Опционально: сбросить игру
+            var vm = this.DataContext as MainViewModel;
+            vm?.NewGame();
+        }
+
+        // Обработчики кнопок
+        private void StartLocalFriend_Click(object? sender, RoutedEventArgs e) => ShowSetup();
+        
+        private void ChooseWhite_Click(object? sender, RoutedEventArgs e) => StartGame(true);
+        private void ChooseBlack_Click(object? sender, RoutedEventArgs e) => StartGame(false);
+        
+        private void BackToMenu_Click(object? sender, RoutedEventArgs e) => ShowMainMenu();
+        
+        private void StartVsAi_Click(object? sender, RoutedEventArgs e) 
+        { 
+            // Пока просто запускаем за белых, потом добавим выбор сложности
+            StartGame(true); 
+        }
+
+        private void ShowNetworkMenu_Click(object? sender, RoutedEventArgs e)
+        {
+            // Тут позже откроем окно ввода IP
+            System.Console.WriteLine("Функция сети в разработке!");
+        }
+        
+        // ВАЖНО: В конструкторе сразу покажи меню
         public MainWindow()
         {
             InitializeComponent();
-            this.Opened += (s, e) => BuildChessBoard();
-            
-            // Вся логика меню теперь в XAML через Binding!
-            // Ничего добавлять сюда не нужно.
+            ShowMainMenu(); // Скрываем всё, показываем меню
+            // Убираем this.Opened += BuildChessBoard, так как теперь рисуем доску только при старте игры
         }
 
         private void InitializeSettingsLogic()
@@ -94,7 +168,8 @@ namespace kchess.Graphics
             });
         }
 
-        private void BuildChessBoard()
+        // Добавляем параметр isWhitePerspective
+        private void BuildChessBoard(bool isWhitePerspective = true)
         {
             var grid = this.FindControl<Grid>("ChessBoardGrid");
             if (grid == null) return;
@@ -104,16 +179,14 @@ namespace kchess.Graphics
             _images.Clear();
 
             const int BoardSize = 8;
-            
-            // Цвета для координат
             var DarkCoordColor = Color.Parse("#F0D9B5"); 
             var LightCoordColor = Color.Parse("#769656"); 
             
             string[] files = { "a", "b", "c", "d", "e", "f", "g", "h" };
 
+            // ... (очистка Column/Row Definitions остается той же) ...
             grid.ColumnDefinitions.Clear();
             grid.RowDefinitions.Clear();
-
             for (int i = 0; i < BoardSize; i++)
             {
                 grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
@@ -124,82 +197,90 @@ namespace kchess.Graphics
             {
                 for (int x = 0; x < BoardSize; x++)
                 {
-                    int currentX = x;
-                    int currentY = y;
+                    // === ЛОГИКА ПЕРЕВОРОТА ===
+                    // Если играем за белых: x=0..7, y=0..7 (стандарт)
+                    // Если за черных: нам нужно инвертировать координаты отрисовки
+                    int boardX = isWhitePerspective ? x : (BoardSize - 1 - x);
+                    int boardY = isWhitePerspective ? y : (BoardSize - 1 - y);
+                    
+                    // Но логика шахматного движка всегда работает от 0 до 7 относительно массива Board[8,8]
+                    // Где Board[0,0] - это a8 (черные), Board[7,7] - h1 (белые).
+                    // Нам нужно мапить визуальные координаты (x,y в цикле) на логические (logicX, logicY).
+                    
+                    int logicX = isWhitePerspective ? x : (BoardSize - 1 - x);
+                    int logicY = isWhitePerspective ? y : (BoardSize - 1 - y);
 
                     var cellBorder = new Border
                     {
-                        [Grid.ColumnProperty] = currentX,
-                        [Grid.RowProperty] = currentY,
+                        [Grid.ColumnProperty] = x, // Визуальная позиция в Grid
+                        [Grid.RowProperty] = y,
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch,
-                        Tag = $"{currentX},{currentY}"
+                        Tag = $"{logicX},{logicY}" // Сохраняем ЛОГИЧЕСКИЕ координаты для кликов!
                     };
 
-                    bool isDark = (currentX + currentY) % 2 == 1;
+                    bool isDark = (logicX + logicY) % 2 == 1; // Цвет клетки зависит от логики
                     var cellColor = isDark ? Color.Parse("#769656") : Color.Parse("#F0D9B5");
                     cellBorder.Background = new SolidColorBrush(cellColor);
 
-                    // Создаем контейнер Grid ВНУТРИ клетки сразу
                     var contentGrid = new Grid();
                     cellBorder.Child = contentGrid;
 
-                    // Определяем цвет текста
                     var coordColor = isDark ? DarkCoordColor : LightCoordColor;
                     var brush = new SolidColorBrush(coordColor);
 
-                    // 1. БУКВА (снизу слева) - только для нижнего ряда (y == 7)
+                    // === ОТРИСОВКА КООРДИНАТ ===
+                    // Буквы: должны быть снизу относительно игрока.
+                    // Если белые: снизу это y=7. Если черные: снизу это y=7 (визуально), но логически это 0-я горизонталь.
+                    // Проще: рисуем буквы на последнем визуальном ряду (y == 7) и цифры на последнем визуальном столбце (x == 7).
+                    
                     if (y == BoardSize - 1) 
                     {
+                        // Какую букву писать?
+                        // Если белые: x=0 -> 'a'. Если черные: x=0 (визуально h1) -> 'h'.
+                        char fileChar = isWhitePerspective ? files[logicX][0] : files[logicX][0]; 
+                        // Стоп, logicX уже инвертирован. 
+                        // Если x=0 (слева визуально для черных), то logicX=7 ('h'). Значит files[7] = 'h'. Всё верно!
+                        
                         var fileLabel = new TextBlock
                         {
-                            Text = files[currentX],
-                            FontSize = 12,
-                            FontWeight = FontWeight.Bold,
-                            Foreground = brush,
-                            HorizontalAlignment = HorizontalAlignment.Left,
-                            VerticalAlignment = VerticalAlignment.Bottom,
-                            Margin = new Thickness(2, 0, 0, 2),
-                            IsHitTestVisible = false
+                            Text = files[logicX].ToString(), // Используем logicX для выбора буквы
+                            FontSize = 12, FontWeight = FontWeight.Bold, Foreground = brush,
+                            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
+                            Margin = new Thickness(2, 0, 0, 2), IsHitTestVisible = false
                         };
                         contentGrid.Children.Add(fileLabel);
                     }
 
-                    // 2. ЦИФРА (справа сверху) - только для правого края (x == 7)
-                    if (currentX == BoardSize - 1)
+                    if (x == BoardSize - 1)
                     {
-                        int rankNumber = BoardSize - y;
+                        // Какую цифру писать?
+                        // Если белые: y=0 -> 8. Если черные: y=0 (визуально верх) -> 1.
+                        // logicY уже инвертирован. Rank = 8 - logicY.
+                        int rankNumber = BoardSize - logicY;
                         
                         var rankLabel = new TextBlock
                         {
                             Text = rankNumber.ToString(),
-                            FontSize = 12,
-                            FontWeight = FontWeight.Bold,
-                            Foreground = brush,
-                            HorizontalAlignment = HorizontalAlignment.Right,
-                            VerticalAlignment = VerticalAlignment.Top,
-                            Margin = new Thickness(0, 2, 2, 0),
-                            IsHitTestVisible = false
+                            FontSize = 12, FontWeight = FontWeight.Bold, Foreground = brush,
+                            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                            Margin = new Thickness(0, 2, 2, 0), IsHitTestVisible = false
                         };
                         contentGrid.Children.Add(rankLabel);
                     }
                     
-                    // 3. ФИГУРА
                     var pieceImage = new Image
                     {
-                        Name = $"PieceImage_{x}_{y}",
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Stretch = Stretch.Uniform,
-                        IsHitTestVisible = false
+                        Name = $"PieceImage_{x}_{y}", // Имя зависит от визуальных координат, чтобы находить в UpdateVisuals
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                        Stretch = Stretch.Uniform, IsHitTestVisible = false
                     };
                     contentGrid.Children.Add(pieceImage);
 
-                    // Обработчик клика
                     cellBorder.PointerReleased += (s, e) =>
                     {
                         if (e.InitialPressMouseButton == MouseButton.Left)
-                            OnCellClicked(currentX, currentY);
+                            OnCellClicked(logicX, logicY); // Передаем ЛОГИЧЕСКИЕ координаты в движок!
                     };
                     cellBorder.Cursor = new Cursor(StandardCursorType.Hand);
 
@@ -211,10 +292,7 @@ namespace kchess.Graphics
 
             UpdateBoardVisuals();
         }
-
-        // ... (Остальные твои методы: UpdateBoardVisuals, OnCellClicked и т.д. остаются БЕЗ ИЗМЕНЕНИЙ) ...
-        // Просто скопируй их из своего файла ниже сюда.
-        
+     
         private void UpdateBoardVisuals()
         {
             var vm = this.DataContext as MainViewModel;

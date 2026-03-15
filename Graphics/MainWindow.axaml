@@ -9,11 +9,28 @@
 
     <!-- Основной Grid -->
     <Grid>
+                <!-- ГЛАВНОЕ МЕНЮ -->
+        <StackPanel x:Name="MainMenuPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
+            <TextBlock Text="kchess" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30"/>
+            <Button Content="Игра против ИИ" Width="200" Click="StartVsAi_Click"/>
+            <Button Content="Игра с другом" Width="200" Click="StartLocalFriend_Click"/>
+            <Button Content="Игра по сети" Width="200" Click="ShowNetworkMenu_Click"/>
+            <Button Content="Выход" Width="200" Click="ExitApp_Click" Background="#5C4033" Foreground="White" Margin="0,20,0,0"/>
+        
+        </StackPanel>
+
+        <!-- ЭКРАН НАСТРОЙКИ (Выбор цвета) -->
+        <StackPanel x:Name="SetupPanel" IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
+            <TextBlock Text="Выберите сторону" FontSize="24" HorizontalAlignment="Center"/>
+            <Button Content="Играть за Белых" Width="200" Click="ChooseWhite_Click"/>
+            <Button Content="Играть за Черных" Width="200" Click="ChooseBlack_Click"/>
+            <Button Content="Назад" Width="100" Click="BackToMenu_Click"/>
+        </StackPanel>
+
+        <Grid x:Name="GamePanel" IsVisible="False">
         <!-- Сетка контента: Доска + Правая панель -->
         <Grid ColumnDefinitions="*,320" Margin="10">
-            
-            <!-- ЛЕВАЯ ЧАСТЬ: Доска (Теперь в Viewbox для сохранения пропорций) -->
-            <Border Grid.Column="0" Background="#333" CornerRadius="5" Padding="5">
+                    <Border Grid.Column="0" Background="#333" CornerRadius="5" Padding="5">
                 <!-- Viewbox автоматически масштабирует содержимое, сохраняя пропорции -->
                 <Viewbox Stretch="Uniform">
                     <!-- Задаем фиксированный базовый размер, например 600x600. 
@@ -66,7 +83,16 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Border>
+                <Button Content="В главное меню" 
+                        HorizontalAlignment="Stretch" 
+                        Margin="0,20,0,0"
+                        Padding="10"
+                        Click="BackToMenuFromGame_Click"/>                
             </StackPanel>
+
+        </Grid>    
+            <!-- ЛЕВАЯ ЧАСТЬ: Доска (Теперь в Viewbox для сохранения пропорций) -->
+
         </Grid>
 
         <!-- КНОПКА НАСТРОЕК (Плавающая в правом верхнем углу) -->
