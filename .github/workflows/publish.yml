@@ -1,0 +1,48 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Запускается только когда ты пушишь тег вида v1.0, v1.1 и т.д.
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Платформы для сборки
+        include:
+          - rid: win-x64
+            artifact-name: kchess-windows
+          - rid: linux-x64
+            artifact-name: kchess-linux-x64
+          - rid: linux-arm64
+            artifact-name: kchess-linux-arm64 # Для телефона/термукса
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x' # Или 10.0.x, если используешь 10
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Publish ${{ matrix.rid }}
+        run: |
+          dotnet publish -c Release -r ${{ matrix.rid }} --self-contained true -o ./publish/${{ matrix.artifact-name }}
+
+      - name: Zip artifacts
+        run: |
+          cd ./publish
+          zip -r ${{ matrix.artifact-name }}.zip ${{ matrix.artifact-name }}
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./publish/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
