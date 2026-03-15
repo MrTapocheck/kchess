@@ -2,6 +2,8 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - main  
     tags:
       - 'v*' # Запускается только когда ты пушишь тег вида v1.0, v1.1 и т.д.
 
