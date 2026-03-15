@@ -26,7 +26,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.x' # Или 10.0.x, если используешь 10
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
