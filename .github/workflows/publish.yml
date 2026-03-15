@@ -2,11 +2,9 @@ name: Build and Release
 
 on:
   push:
-    branches:
-      - main      # Запускать сборку при каждом коммите
-    tags:
-      - 'v*'     # Запускать сборку + релиз при создании тега
-    workflow_dispatch: 
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch: # отчаяно запускать вручную для тестов
 
 jobs:
   build:
@@ -38,17 +36,28 @@ jobs:
         run: |
           dotnet publish -c Release -r ${{ matrix.rid }} --self-contained true -o ./publish/${{ matrix.name }}
 
+      # УСТАНОВКА ZIP 
+      - name: Install zip utility
+        run: sudo apt-get update && sudo apt-get install -y zip
+
       - name: Create Zip Archives
         run: |
           cd ./publish
+          echo "Files in publish folder:"
+          ls -R
+          echo "Creating archive for ${{ matrix.name }}"
           zip -r ${{ matrix.name }}.zip ${{ matrix.name }}
+          ls -l *.zip
 
-      # выполнится только если пуш был сделан по тегу (refs/tags/)
+      # ПРОВЕРКА: Загружаем только если это ТЕГ
       - name: Upload to Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: ./publish/*.zip
-          # Если тега нет, этот шаг просто пропускается
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
