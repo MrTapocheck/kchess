@@ -40,12 +40,12 @@ namespace kchess
         private Position? _enPassantTarget = null; 
 
         // Флаги рокировки
-        private bool _whiteKingMoved = false;
-        private bool _blackKingMoved = false;
-        private bool _whiteRookKingsideMoved = false;
-        private bool _whiteRookQueensideMoved = false;
-        private bool _blackRookKingsideMoved = false;
-        private bool _blackRookQueensideMoved = false;
+        public bool _whiteKingMoved = false;
+        public bool _blackKingMoved = false;
+        public bool _whiteRookKingsideMoved = false;
+        public bool _whiteRookQueensideMoved = false;
+        public bool _blackRookKingsideMoved = false;
+        public bool _blackRookQueensideMoved = false;
 
         private Position? _pendingPromotionPos = null;
 
@@ -54,6 +54,26 @@ namespace kchess
             Board = new Piece?[8, 8];
             InitializeBoard();
         }
+
+        // для отрисовки фантомчиков
+        public List<(int x, int y)> GetPseudoMoves(int fromX, int fromY)
+        {
+            var moves = new List<(int x, int y)>();
+            if (!IsValidCoordinate(fromX, fromY)) return moves;
+            
+            var piece = Board[fromY, fromX];
+            if (piece == null) return moves;
+
+            // Используем встроенный метод фигуры
+            var positions = piece.GetLegalMoves(Board, new Position(fromX, fromY));
+            foreach (var pos in positions)
+            {
+                moves.Add((pos.X, pos.Y));
+            }
+            
+            //потом добавить генерацию рокировок
+            return moves;
+        }        
 
         public void InitializeBoard()
         {
@@ -172,7 +192,7 @@ namespace kchess
                 _positionHistory[hash] = 1;
         }
 
-        private bool IsSquareAttacked(int x, int y, PieceColor attackerColor)
+        public bool IsSquareAttacked(int x, int y, PieceColor attackerColor)
         {
             for (int bx = 0; bx < 8; bx++)
             {

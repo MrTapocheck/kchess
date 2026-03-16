@@ -14,6 +14,8 @@ using kchess.Graphics;
 using Avalonia.Platform;
 using System.Threading; // Для Timer
 using Avalonia.Interactivity;
+using System.Collections.Generic; // Для List<>
+using System.Linq;                // Для FirstOrDefault()
 
 namespace kchess.Graphics
 {
@@ -24,6 +26,9 @@ namespace kchess.Graphics
         private readonly List<Image> _images = new List<Image>(); 
         private int? _selectedX;
         private int? _selectedY;
+
+        //для подсветки
+        private List<(int x, int y)> _possibleMoves = new List<(int, int)>(); 
 
         // Таймер для проверки состояния мыши (Polling)
         private Timer? _hoverTimer;
@@ -301,108 +306,203 @@ namespace kchess.Graphics
             foreach (var cell in _cells)
             {
                 var tag = cell.Tag?.ToString()?.Split(',');
-                if (tag != null && tag.Length == 2)
+                if (tag == null || tag.Length != 2) continue;
+
+                int x = int.Parse(tag[0]);
+                int y = int.Parse(tag[1]);
+                var piece = vm.Board[y, x];
+
+                // Находим Grid внутри клетки
+                if (cell.Child is not Grid gridContainer) continue;
+
+                // --- 1. УПРАВЛЕНИЕ КОНТУРОМ (Желтая рамка) ---
+                Border? selectionBorder = gridContainer.Children.FirstOrDefault(c => c is Border b && b.Name == "SelectionBorder") as Border;
+                
+                if (selectionBorder == null)
                 {
-                    int x = int.Parse(tag[0]);
-                    int y = int.Parse(tag[1]);
-
-                    var piece = vm.Board[y, x];
-                    
-                    // ИСПРАВЛЕНИЕ: Ищем Image внутри Grid, а не напрямую в Child
-                    Image? pieceImage = null;
-
-                    if (cell.Child is Grid gridContainer)
+                    // Создаем, если нет
+                    selectionBorder = new Border
                     {
-                        // Ищем первый элемент типа Image в_children грида
-                        foreach (var child in gridContainer.Children)
+                        Name = "SelectionBorder",
+                        BorderThickness = new Thickness(4),
+                        BorderBrush = new SolidColorBrush(Color.Parse("#FFFF00")), // Ярко-желтый
+                        IsHitTestVisible = false, // Чтобы не мешал кликам
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        VerticalAlignment = VerticalAlignment.Stretch
+                    };
+                    // Вставляем самым первым (поверх фона клетки, но под фигурами)
+                    gridContainer.Children.Insert(0, selectionBorder);
+                }
+
+                // Показываем только если эта клетка выбрана
+                selectionBorder.IsVisible = (_selectedX == x && _selectedY == y);
+
+
+                // --- 2. УПРАВЛЕНИЕ ПРИЗРАКОМ (Полупрозрачная фигура) ---
+                Image? ghostImage = gridContainer.Children.FirstOrDefault(c => c is Image i && i.Name.StartsWith("Ghost")) as Image;
+
+                bool isPossibleMove = _possibleMoves.Any(m => m.x == x && m.y == y);
+
+                if (isPossibleMove)
+                {
+                    if (ghostImage == null)
+                    {
+                        // Создаем призрака
+                        ghostImage = new Image
                         {
-                            if (child is Image img)
-                            {
-                                pieceImage = img;
-                                break;
-                            }
-                        }
+                            Name = $"Ghost_{x}_{y}",
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Stretch = Stretch.Uniform,
+                            IsHitTestVisible = false,
+                            Opacity = 0.5 // Полупрозрачность 50%
+                        };
+                        gridContainer.Children.Add(ghostImage);
                     }
-                    else if (cell.Child is Image directImage)
+
+                    // Берем тип фигуры ИЗ ВЫБРАННОЙ КЛЕТКИ (той, которой ходим)
+                    var selectedPiece = vm.Board[_selectedY!.Value, _selectedX!.Value];
+                    if (selectedPiece != null)
                     {
-                        // На случай если вернемся к старой структуре (для надежности)
-                        pieceImage = directImage;
+                        LoadPieceImage(ghostImage, selectedPiece);
+                        ghostImage.IsVisible = true;
+                        
+                        // Если на целевой клетке стоит СВОЯ фигура, скрываем призрака (туда нельзя ходить)
+                        if (piece != null && piece.Color == selectedPiece.Color)
+                        {
+                            ghostImage.IsVisible = false;
+                        }
+                        // Если там враг — призрак виден (сигнал атаки)
                     }
-
-                    if (pieceImage != null)
+                    else
                     {
-                        if (piece == null)
-                        {
-                            pieceImage.Source = null;
-                            pieceImage.IsVisible = false; // Скрываем, если фигуры нет
-                        }
-                        else
-                        {
-                            pieceImage.IsVisible = true;
-                            string figCode = piece.Type switch
-                            {
-                                PieceType.Pawn => "p",
-                                PieceType.Knight => "n",
-                                PieceType.Bishop => "b",
-                                PieceType.Rook => "r",
-                                PieceType.Queen => "q",
-                                PieceType.King => "k",
-                                _ => ""
-                            };
+                        ghostImage.IsVisible = false;
+                    }
+                }
+                else
+                {
+                    if (ghostImage != null) ghostImage.IsVisible = false;
+                }
 
-                            string colorCode = (piece.Color == PieceColor.White) ? "l" : "d";
 
-                            if (!string.IsNullOrEmpty(figCode))
-                            {
-                                string fileName = $"Chess_{figCode}{colorCode}t60.png";
-                                try
-                                {
-                                    string assetPath = $"/Graphics/Assets/{fileName}";
-                                    var uri = new Uri($"avares://kchess{assetPath}");
-                                    using var stream = AssetLoader.Open(uri);
-                                    pieceImage.Source = new Bitmap(stream);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"Ошибка загрузки картинки {fileName}: {ex.Message}");
-                                    pieceImage.Source = null;
-                                }
-                            }
-                            else
-                            {
-                                pieceImage.Source = null;
-                            }
-                        }
+                // --- 3. УПРАВЛЕНИЕ РЕАЛЬНОЙ ФИГУРОЙ ---
+                Image? realImage = gridContainer.Children.FirstOrDefault(c => c is Image i && i.Name.StartsWith("PieceImage_")) as Image;
+                
+                if (realImage != null)
+                {
+                    if (piece != null)
+                    {
+                        LoadPieceImage(realImage, piece);
+                        realImage.IsVisible = true;
+                        
+                        // Опционально: можно скрывать реальную фигуру, если на ней стоит призрак (для красоты), 
+                        // но лучше оставить как есть.
+                    }
+                    else
+                    {
+                        realImage.IsVisible = false;
+                        realImage.Source = null;
                     }
                 }
             }
+        }
+
+        // Вспомогательный метод загрузки картинки (чтобы не дублировать код)
+        private void LoadPieceImage(Image image, Piece piece)
+        {
+            if (piece == null) { image.Source = null; return; }
+
+            string figCode = piece.Type switch
+            {
+                PieceType.Pawn => "p", PieceType.Knight => "n", PieceType.Bishop => "b",
+                PieceType.Rook => "r", PieceType.Queen => "q", PieceType.King => "k", _ => ""
+            };
+            string colorCode = (piece.Color == PieceColor.White) ? "l" : "d";
+            string fileName = $"Chess_{figCode}{colorCode}t60.png";
+
+            try
+            {
+                string assetPath = $"/Graphics/Assets/{fileName}";
+                var uri = new Uri($"avares://kchess{assetPath}");
+                using var stream = AssetLoader.Open(uri);
+                image.Source = new Bitmap(stream);
+            }
+            catch { image.Source = null; }
         }
 
         private void OnCellClicked(int x, int y)
         {
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
+
+            // 1. Если уже есть выбор и мы кликнули на возможный ход -> ХОДИМ
             if (_selectedX.HasValue && _selectedY.HasValue)
             {
-                if (_selectedX == x && _selectedY == y) { ClearSelection(); return; }
-                vm.TryMakeMove(_selectedX.Value, _selectedY.Value, x, y);
-                UpdateBoardVisuals();
-                if (vm.IsWaitingForPromotion) ShowPromotionDialog(vm, x, y);
+                // Проверяем, есть ли клик в списке возможных ходов
+                bool isMoveValid = _possibleMoves.Any(m => m.x == x && m.y == y);
+
+                if (isMoveValid)
+                {
+                    // Делаем ход
+                    vm.TryMakeMove(_selectedX.Value, _selectedY.Value, x, y);
+                    
+                    // Сбрасываем выделение
+                    ClearSelection();
+                    UpdateBoardVisuals(); // Перерисовываем доску (фигуры переместились)
+                    
+                    // Проверка на превращение пешки (если нужно)
+                    if (vm.IsWaitingForPromotion) 
+                    {
+                        ShowPromotionDialog(vm, x, y);
+                    }
+                    return;
+                }
+
+                // Если кликнули не на ход, а на другую свою фигуру -> МЕНЯЕМ ВЫБОР
+                var piece = vm.Board[y, x];
+                bool isMyTurn = vm.CurrentTurnText.Contains("белых"); // Или лучше через Enum
+                PieceColor myColor = isMyTurn ? PieceColor.White : PieceColor.Black;
+
+                if (piece != null && piece.Color == myColor)
+                {
+                    _selectedX = x;
+                    _selectedY = y;
+                    _possibleMoves = vm.GetLegalMoves(x, y); // Запрашиваем ходы у движка
+                    UpdateBoardVisuals(); // Рисуем призраков
+                    return;
+                }
+
+                // Кликнули в пустоту или на врага (но это не ход) -> СБРОС
                 ClearSelection();
+                UpdateBoardVisuals();
                 return;
             }
-            var piece = vm.Board[y, x];
-            bool isWhiteTurn = vm.CurrentTurnText.Contains("белых");
-            PieceColor currentColor = isWhiteTurn ? PieceColor.White : PieceColor.Black;
-            if (piece != null && piece.Color == currentColor)
+
+            // 2. Если ничего не выбрано -> ПЫТАЕМСЯ ВЫБРАТЬ
+            var currentPiece = vm.Board[y, x];
+            bool isCurrentMyTurn = vm.CurrentTurnText.Contains("белых");
+            PieceColor currentMyColor = isCurrentMyTurn ? PieceColor.White : PieceColor.Black;
+
+            if (currentPiece != null && currentPiece.Color == currentMyColor)
             {
-                _selectedX = x; _selectedY = y;
-                vm.SetStatus($"Выбрана {piece.Type}. Куда ходим?");
+                _selectedX = x;
+                _selectedY = y;
+                _possibleMoves = vm.GetLegalMoves(x, y);
+                
+                vm.SetStatus($"Выбрана {currentPiece.Type}. Куда ходим?");
+                UpdateBoardVisuals();
             }
             else
             {
-                vm.SetStatus(piece == null ? "Выберите фигуру." : "Это фигура противника.");
+                vm.SetStatus(currentPiece == null ? "Выберите фигуру." : "Это фигура противника.");
             }
+        }
+
+        private void ClearSelection()
+        {
+            _selectedX = null;
+            _selectedY = null;
+            _possibleMoves.Clear();
         }
 
         private void ShowPromotionDialog(MainViewModel vm, int x, int y)
@@ -423,7 +523,5 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             if (vm != null) { vm.NewGame(); UpdateBoardVisuals(); }
         }
-
-        private void ClearSelection() { _selectedX = null; _selectedY = null; }
     }
 }
