@@ -29,6 +29,7 @@ namespace kchess.Graphics
 
         //для подсветки
         private List<(int x, int y)> _possibleMoves = new List<(int, int)>(); 
+        public Color HighlightColor { get; set; } = Color.Parse("#FFFF00");
 
         // Таймер для проверки состояния мыши (Polling)
         private Timer? _hoverTimer;
@@ -115,6 +116,44 @@ namespace kchess.Graphics
             ShowMainMenu(); // Скрываем всё, показываем меню
             // Убираем this.Opened += BuildChessBoard, так как теперь рисуем доску только при старте игры
         }
+
+        // Метод открытия  универсального диалога
+        private void OpenHighlightColorPicker_Click(object? sender, RoutedEventArgs e)
+        {
+            if (SettingsPopup != null) SettingsPopup.IsOpen = false;
+
+            var picker = new ColorPickerDialog();
+            picker.SetInitialColor(HighlightColor);
+
+            // Просто слушаем цвет. Диалог сам закроется внутри себя при нажатии кнопок.
+            picker.ColorSelected += (s, color) =>
+            {
+                HighlightColor = color;
+                UpdateSelectionBorderColor();
+            };
+
+            if (this.Content is Grid mainGrid)
+            {
+                mainGrid.Children.Add(picker);
+            }
+        } 
+
+        // Метод обновления цвета уже существующих рамок на доске
+        private void UpdateSelectionBorderColor()
+        {
+            foreach (var cell in _cells)
+            {
+                if (cell.Child is Grid gridContainer)
+                {
+                    // Ищем бордер рамки внутри клетки
+                    var border = gridContainer.Children.FirstOrDefault(c => c is Border b && b.Name == "SelectionBorder") as Border;
+                    if (border != null)
+                    {
+                        border.BorderBrush = new SolidColorBrush(HighlightColor);
+                    }
+                }
+            }
+        }        
 
         private void InitializeSettingsLogic()
         {
@@ -325,7 +364,7 @@ namespace kchess.Graphics
                     {
                         Name = "SelectionBorder",
                         BorderThickness = new Thickness(4),
-                        BorderBrush = new SolidColorBrush(Color.Parse("#FFFF00")), // Ярко-желтый
+                        BorderBrush = new SolidColorBrush(HighlightColor), // переменная цвета
                         IsHitTestVisible = false, // Чтобы не мешал кликам
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch

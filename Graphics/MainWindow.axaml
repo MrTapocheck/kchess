@@ -9,7 +9,7 @@
 
     <!-- Основной Grid -->
     <Grid>
-                <!-- ГЛАВНОЕ МЕНЮ -->
+        <!-- ГЛАВНОЕ МЕНЮ -->
         <StackPanel x:Name="MainMenuPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
             <TextBlock Text="kchess" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30"/>
             <Button Content="Игра против ИИ" Width="200" Click="StartVsAi_Click"/>
@@ -28,69 +28,69 @@
         </StackPanel>
 
         <Grid x:Name="GamePanel" IsVisible="False">
-        <!-- Сетка контента: Доска + Правая панель -->
-        <Grid ColumnDefinitions="*,320" Margin="10">
-                    <Border Grid.Column="0" Background="#333" CornerRadius="5" Padding="5">
-                <!-- Viewbox автоматически масштабирует содержимое, сохраняя пропорции -->
-                <Viewbox Stretch="Uniform">
-                    <!-- Задаем фиксированный базовый размер, например 600x600. 
+            <!-- Сетка контента: Доска + Правая панель -->
+            <Grid ColumnDefinitions="*,320" Margin="10">
+                <Border Grid.Column="0" Background="#333" CornerRadius="5" Padding="5">
+                    <!-- Viewbox автоматически масштабирует содержимое, сохраняя пропорции -->
+                    <Viewbox Stretch="Uniform">
+                        <!-- Задаем фиксированный базовый размер, например 600x600. 
                          Viewbox сожмет или растянет его под доступное место. -->
-                    <Grid x:Name="ChessBoardGrid" 
+                        <Grid x:Name="ChessBoardGrid" 
                           Width="600" Height="600"
                           ColumnDefinitions="*,*,*,*,*,*,*,*" 
                           RowDefinitions="*,*,*,*,*,*,*,*"/>
-                </Viewbox>
-            </Border>
+                    </Viewbox>
+                </Border>
 
-            <!-- ПРАВАЯ ЧАСТЬ: Панель управления -->
-            <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="10">
+                <!-- ПРАВАЯ ЧАСТЬ: Панель управления -->
+                <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="10">
                 
-                <!-- ОТСТУП СВЕРХУ, чтобы не наезжать на кнопку настроек -->
-                <Border Height="60" Background="Transparent"/> 
+                    <!-- ОТСТУП СВЕРХУ, чтобы не наезжать на кнопку настроек -->
+                    <Border Height="60" Background="Transparent"/> 
 
-                <!-- Статус игры (теперь ниже) -->
-                <Border Background="#444" CornerRadius="5" Padding="15">
-                    <TextBlock Text="{Binding StatusMessage}" 
+                    <!-- Статус игры (теперь ниже) -->
+                    <Border Background="#444" CornerRadius="5" Padding="15">
+                        <TextBlock Text="{Binding StatusMessage}" 
                                FontSize="18" 
                                FontWeight="Bold" 
                                TextAlignment="Center"
                                TextWrapping="Wrap"
                                VerticalAlignment="Center"/>
-                </Border>
+                    </Border>
 
-                <!-- Кнопки управления -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                    <Button Content="Новая игра" Click="NewGame_Click" Padding="10,5"/>
-                </StackPanel>
+                    <!-- Кнопки управления -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                        <Button Content="Новая игра" Click="NewGame_Click" Padding="10,5"/>
+                    </StackPanel>
 
-                <!-- Заголовок истории -->
-                <TextBlock Text="История ходов" FontSize="16" FontWeight="Bold" Margin="0,10,0,5"/>
+                    <!-- Заголовок истории -->
+                    <TextBlock Text="История ходов" FontSize="16" FontWeight="Bold" Margin="0,10,0,5"/>
 
-                <!-- Список ходов -->
-                <Border Background="#2a2a2a" CornerRadius="5" Padding="5" VerticalAlignment="Stretch">
-                    <ListBox ItemsSource="{Binding MoveHistoryList}" 
+                    <!-- Список ходов -->
+                    <Border Background="#2a2a2a" CornerRadius="5" Padding="5" VerticalAlignment="Stretch">
+                        <ListBox ItemsSource="{Binding MoveHistoryList}" 
                              Background="Transparent"
                              BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid ColumnDefinitions="40,*,*" Margin="2">
-                                    <TextBlock Grid.Column="0" Text="{Binding MoveNumber}" FontWeight="Bold" Foreground="#aaa"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding WhiteMove}" Foreground="White" Margin="5,0"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding BlackMove}" Foreground="White" Margin="5,0"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Border>
-                <Button Content="В главное меню" 
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="40,*,*" Margin="2">
+                                        <TextBlock Grid.Column="0" Text="{Binding MoveNumber}" FontWeight="Bold" Foreground="#aaa"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding WhiteMove}" Foreground="White" Margin="5,0"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding BlackMove}" Foreground="White" Margin="5,0"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <Button Content="В главное меню" 
                         HorizontalAlignment="Stretch" 
                         Margin="0,20,0,0"
                         Padding="10"
                         Click="BackToMenuFromGame_Click"/>                
-            </StackPanel>
+                </StackPanel>
 
-        </Grid>    
+            </Grid>    
             <!-- ЛЕВАЯ ЧАСТЬ: Доска (Теперь в Viewbox для сохранения пропорций) -->
 
         </Grid>
@@ -160,6 +160,22 @@
                             <TextBlock Text="Show Hints" Foreground="White"/>
                         </StackPanel>
                         <ToggleButton HorizontalAlignment="Left" Margin="20,0,0,0" IsChecked="True" Content="On"/>
+
+                        <!-- === НОВАЯ КНОПКА ВЫБОРА ЦВЕТА РАМКИ === -->
+                        <Border Height="1" Background="#444" Margin="0,5"/>
+                        
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🖌️" FontSize="16"/>
+                            <TextBlock Text="Цвет рамки" Foreground="White"/>
+                        </StackPanel>
+                        
+                        <Button Content="Выбрать цвет..." 
+                                HorizontalAlignment="Stretch" 
+                                Click="OpenHighlightColorPicker_Click"
+                                Background="#383838" Foreground="White" 
+                                BorderBrush="#555" Padding="8" Margin="20,0,0,0"/>
+                        <!-- ========================================== -->
+
                     </StackPanel>
                 </Border>
             </Popup>

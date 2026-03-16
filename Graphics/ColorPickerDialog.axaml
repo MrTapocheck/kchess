@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="kchess.Graphics.ColorPickerDialog"
+             Width="320" Height="550" 
+             Background="#2D2D30" BorderBrush="#FFFFFF" BorderThickness="2" CornerRadius="8"
+             HorizontalAlignment="Center" VerticalAlignment="Center">
+    
+    <StackPanel Margin="20" Spacing="15">
+        <TextBlock Text="Выберите цвет" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+
+        <!-- Область предпросмотра -->
+        <Border x:Name="PreviewBox" Height="80" CornerRadius="6" BorderBrush="#777" BorderThickness="1" Margin="0,10"/>
+
+        <!-- Градиент оттенка -->
+        <TextBlock Text="Оттенок" Foreground="#AAA" FontSize="14"/>
+        <Slider x:Name="HueSlider" Minimum="0" Maximum="360" Value="60" TickFrequency="1" IsSnapToTickEnabled="True">
+            <Slider.Background>
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Color="#FF0000" Offset="0"/>
+                    <GradientStop Color="#FFFF00" Offset="0.17"/>
+                    <GradientStop Color="#00FF00" Offset="0.33"/>
+                    <GradientStop Color="#00FFFF" Offset="0.5"/>
+                    <GradientStop Color="#0000FF" Offset="0.67"/>
+                    <GradientStop Color="#FF00FF" Offset="0.83"/>
+                    <GradientStop Color="#FF0000" Offset="1"/>
+                </LinearGradientBrush>
+            </Slider.Background>
+        </Slider>
+
+        <!-- Яркость -->
+        <TextBlock Text="Яркость" Foreground="#AAA" FontSize="14"/>
+        <Slider x:Name="LightnessSlider" Minimum="0" Maximum="100" Value="50"/>
+
+        <!-- Ввод HEX -->
+        <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock Text="HEX:" VerticalAlignment="Center" Foreground="White" FontSize="14"/>
+            <TextBox x:Name="HexInput" Width="110" Text="#FFFF00" 
+                     Foreground="White" Background="#333" BorderBrush="#555" 
+                     HorizontalContentAlignment="Center"/>
+        </StackPanel>
+
+        <!-- КНОПКИ (Самое важное!) -->
+        <Grid ColumnDefinitions="*,*" Margin="0,20,0,0">
+            <Button Grid.Column="0" Content="ОТМЕНА" Click="CancelClick" 
+                    Margin="0,0,5,0" Padding="12" Background="#555" Foreground="White" FontWeight="Bold"/>
+            <Button Grid.Column="1" Content="ГОТОВО" Click="ApplyClick" 
+                    Margin="5,0,0,0" Padding="12" Background="#007ACC" Foreground="White" FontWeight="Bold"/>
+        </Grid>
+    </StackPanel>
+</UserControl>
