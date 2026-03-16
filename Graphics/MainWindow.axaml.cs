@@ -16,11 +16,15 @@ using System.Threading; // Для Timer
 using Avalonia.Interactivity;
 using System.Collections.Generic; // Для List<>
 using System.Linq;                // Для FirstOrDefault()
+using kchess.Models; 
+using kchess.Services; 
 
 namespace kchess.Graphics
 {
     public partial class MainWindow : Window
     {
+        private AppSettings _settings; 
+
         private bool _isWhitePerspective = true;
         private readonly List<Border> _cells = new List<Border>();
         private readonly List<Image> _images = new List<Image>(); 
@@ -42,6 +46,7 @@ namespace kchess.Graphics
             MainMenuPanel.IsVisible = true;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
+
         }
 
         // Обработчик кнопки "Выход" в главном меню
@@ -112,9 +117,11 @@ namespace kchess.Graphics
         // ВАЖНО: В конструкторе сразу покажи меню
         public MainWindow()
         {
+            _settings = SettingsService.Load();
+            HighlightColor = _settings.GetHighlightColor();            
             InitializeComponent();
             ShowMainMenu(); // Скрываем всё, показываем меню
-            // Убираем this.Opened += BuildChessBoard, так как теперь рисуем доску только при старте игры
+
         }
 
         // Метод открытия  универсального диалога
@@ -125,18 +132,23 @@ namespace kchess.Graphics
             var picker = new ColorPickerDialog();
             picker.SetInitialColor(HighlightColor);
 
-            // Просто слушаем цвет. Диалог сам закроется внутри себя при нажатии кнопок.
             picker.ColorSelected += (s, color) =>
             {
                 HighlightColor = color;
                 UpdateSelectionBorderColor();
+
+                if (_settings != null) // Защита от null
+                {
+                    _settings.HighlightColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+                    SettingsService.Save(_settings);
+                }
             };
 
             if (this.Content is Grid mainGrid)
             {
                 mainGrid.Children.Add(picker);
             }
-        } 
+        }
 
         // Метод обновления цвета уже существующих рамок на доске
         private void UpdateSelectionBorderColor()
