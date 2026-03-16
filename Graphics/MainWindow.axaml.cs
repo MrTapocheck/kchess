@@ -1,5 +1,4 @@
 using System; 
-using System.Collections.Generic; 
 using Avalonia; 
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -398,7 +397,6 @@ namespace kchess.Graphics
                 {
                     if (ghostImage == null)
                     {
-                        // Создаем призрака
                         ghostImage = new Image
                         {
                             Name = $"Ghost_{x}_{y}",
@@ -406,36 +404,32 @@ namespace kchess.Graphics
                             VerticalAlignment = VerticalAlignment.Center,
                             Stretch = Stretch.Uniform,
                             IsHitTestVisible = false,
-                            Opacity = 0.5 // Полупрозрачность 50%
+                            Opacity = 0.5
                         };
                         gridContainer.Children.Add(ghostImage);
                     }
 
-                    // Берем тип фигуры ИЗ ВЫБРАННОЙ КЛЕТКИ (той, которой ходим)
                     var selectedPiece = vm.Board[_selectedY!.Value, _selectedX!.Value];
                     if (selectedPiece != null)
                     {
-                        LoadPieceImage(ghostImage, selectedPiece);
-                        ghostImage.IsVisible = true;
+                        // ! значит точно не ноль
+                        LoadPieceImage(ghostImage!, selectedPiece);
+                        ghostImage!.IsVisible = true;
                         
-                        // Если на целевой клетке стоит СВОЯ фигура, скрываем призрака (туда нельзя ходить)
                         if (piece != null && piece.Color == selectedPiece.Color)
                         {
-                            ghostImage.IsVisible = false;
+                            ghostImage!.IsVisible = false;
                         }
-                        // Если там враг — призрак виден (сигнал атаки)
                     }
                     else
                     {
-                        ghostImage.IsVisible = false;
+                        ghostImage!.IsVisible = false;
                     }
                 }
                 else
                 {
                     if (ghostImage != null) ghostImage.IsVisible = false;
                 }
-
-
                 // --- 3. УПРАВЛЕНИЕ РЕАЛЬНОЙ ФИГУРОЙ ---
                 Image? realImage = gridContainer.Children.FirstOrDefault(c => c is Image i && i.Name.StartsWith("PieceImage_")) as Image;
                 

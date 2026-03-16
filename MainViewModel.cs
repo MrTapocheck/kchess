@@ -56,8 +56,9 @@ namespace kchess
             if (engine == null || engine.Board[fromY, fromX] == null) return legalMoves;
 
             var piece = engine.Board[fromY, fromX];
-            if (piece.Color != engine.CurrentTurn) return legalMoves;
-
+            if (piece == null || piece.Color != engine.CurrentTurn) 
+                return legalMoves;
+                
             // 1. Получаем геометрические ходы (пешки, кони, слоны и т.д.)
             var pseudoMoves = piece.GetLegalMoves(engine.Board, new Position(fromX, fromY));
             

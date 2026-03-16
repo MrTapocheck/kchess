@@ -9,15 +9,48 @@
 
     <!-- Основной Grid -->
     <Grid>
-        <!-- ГЛАВНОЕ МЕНЮ -->
-        <StackPanel x:Name="MainMenuPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
-            <TextBlock Text="kchess" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30"/>
-            <Button Content="Игра против ИИ" Width="200" Click="StartVsAi_Click"/>
-            <Button Content="Игра с другом" Width="200" Click="StartLocalFriend_Click"/>
-            <Button Content="Игра по сети" Width="200" Click="ShowNetworkMenu_Click"/>
-            <Button Content="Выход" Width="200" Click="ExitApp_Click" Background="#5C4033" Foreground="White" Margin="0,20,0,0"/>
         
-        </StackPanel>
+        <!-- === ИЗМЕНЕННЫЙ БЛОК ГЛАВНОГО МЕНЮ С ФОНОМ === -->
+        <!-- Заменили StackPanel на Grid для наложения слоев. Имя MainMenuPanel сохранено для совместимости с кодом. -->
+        <Grid x:Name="MainMenuPanel" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            
+            <!-- СЛОЙ 1: Фоновое изображение (растягивается, сохраняя пропорции, лишнее обрезается) -->
+            <Image Source="avares://kchess/Graphics/Assets/main_menu_bg.jpeg" 
+                   Stretch="UniformToFill" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"/>
+            
+            <!-- СЛОЙ 2: Контент меню (кнопки и текст по центру) -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="25">
+                
+                <!-- ЗАГОЛОВОК С ЧЕРНОЙ ОБВОДКОЙ (Метод дублирования) -->
+                <Grid HorizontalAlignment="Center">
+                    <!-- Нижний слой: Черный текст (обводка) -->
+                    <TextBlock Text="kchess" 
+                               FontSize="48" 
+                               FontWeight="Bold"
+                               Foreground="Black" 
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    
+                    <!-- Верхний слой: Белый текст (основной) -->
+                    <TextBlock Text="kchess" 
+                               FontSize="48" 
+                               FontWeight="Bold"
+                               Foreground="White" 
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- КНОПКИ -->
+                <Button Content="Игра против ИИ" Width="200" Click="StartVsAi_Click" Padding="10,5"/>
+                <Button Content="Игра с другом" Width="200" Click="StartLocalFriend_Click" Padding="10,5"/>
+                <Button Content="Игра по сети" Width="200" Click="ShowNetworkMenu_Click" Padding="10,5"/>
+                <Button Content="Выход" Width="200" Click="ExitApp_Click" 
+                        Background="#5C4033" Foreground="White" Margin="0,20,0,0" Padding="10,5"/>
+            </StackPanel>
+        </Grid>
+        <!-- === КОНЕЦ БЛОКА ГЛАВНОГО МЕНЮ === -->
 
         <!-- ЭКРАН НАСТРОЙКИ (Выбор цвета) -->
         <StackPanel x:Name="SetupPanel" IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
