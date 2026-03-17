@@ -52,12 +52,71 @@
                 <!-- КНОПКИ -->
                 <Button Content="Игра против ИИ" Width="200" Click="StartVsAi_Click" Padding="10,5"/>
                 <Button Content="Игра с другом" Width="200" Click="StartLocalFriend_Click" Padding="10,5"/>
-                <Button Content="Игра по сети" Width="200" Click="ShowNetworkMenu_Click" Padding="10,5"/>
-                <Button Content="Выход" Width="200" Click="ExitApp_Click" 
-                        Background="#5C4033" Foreground="White" Margin="0,20,0,0" Padding="10,5"/>
+                <Button Content="Создать онлайн игру" Width="200" Click="CreateNetworkGame_Click" Padding="10,5"/>
+                <Button Content="Присоединиться к игре" Width="200" Click="JoinNetworkGame_Click" Padding="10,5"/>
+                <Button Content="Выход" Width="200" Click="ExitApp_Click" Background="#753a03" Foreground="White" Margin="0,20,0,0" Padding="10,5"/>
             </StackPanel>
         </Grid>
         <!-- === КОНЕЦ БЛОКА ГЛАВНОГО МЕНЮ === -->
+
+        <!-- ЭКРАН НАСТРОЙКИ СЕРВЕРА (ДЛЯ СОЗДАТЕЛЯ) -->
+        <!-- Появляется ПОСЛЕ выбора стороны создателем -->
+        <Grid x:Name="HostSetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <!-- ЗАМЕНИ host-bg.jpeg НА СВОЮ КАРТИНКУ -->
+            <Image Source="avares://kchess/Graphics/Assets/host-bg.jpeg" 
+                   Stretch="UniformToFill" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"/>
+            
+            <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="25">
+                <TextBlock Text="Настройки сервера" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                <TextBlock Text="Вы будете играть за выбранный цвет" FontSize="16" Foreground="#CCC" HorizontalAlignment="Center" Margin="0,-10,0,20"/>
+                
+                <Button Content="Создать сервер" Width="220" Click="StartHostServer_Click" Padding="12,8" FontSize="18" Background="#2E7D32" Foreground="White"/>
+                
+                <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,0">
+                    <Button Content="Назад" Width="120" Click="BackToSideSelection_Click" Padding="8,5" Background="#555" Foreground="White"/>
+                    <Button Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- ЭКРАН ПОДКЛЮЧЕНИЯ (ДЛЯ ИГРОКА) -->
+        <!-- Появляется сразу после нажатия "Присоединиться" -->
+        <Grid x:Name="JoinSetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <!-- ЗАМЕНИ join-bg.jpeg НА СВОЮ КАРТИНКУ -->
+            <Image Source="avares://kchess/Graphics/Assets/join-bg.jpeg" 
+                   Stretch="UniformToFill" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"/>
+            
+            <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="25">
+                <TextBlock Text="Подключение к игре" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                <TextBlock Text="Введите IP адрес сервера" FontSize="16" Foreground="#CCC" HorizontalAlignment="Center" Margin="0,-10,0,20"/>
+                
+                <!-- Поле ввода IP -->
+                <TextBox x:Name="IpInputBox" 
+                         Width="220" 
+                         Text="127.0.0.1" 
+                         HorizontalAlignment="Center" 
+                         Padding="10" 
+                         FontSize="16"
+                         Background="#333" 
+                         Foreground="White" 
+                         BorderBrush="#666"/>
+                
+                <Button Content="Подключиться" Width="220" Click="StartJoinClient_Click" Padding="12,8" FontSize="18" Background="#1976D2" Foreground="White"/>
+                
+                <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,0">
+                    <Button Content="Назад" Width="120" Click="BackToMenu_Click" Padding="8,5" Background="#555" Foreground="White"/>
+                    <Button Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
 
         <!-- ЭКРАН ВЫБОРА СЛОЖНОСТИ (ИИ) -->
         <Grid x:Name="AiDifficultyPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">

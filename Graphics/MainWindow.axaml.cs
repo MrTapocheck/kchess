@@ -26,6 +26,7 @@ namespace kchess.Graphics
 
         // Переменные состояния для игры с ботом
         private bool _isVsAi = false; // true если игра против ИИ
+        private bool _isNetworkHost = false; // True если создаем сервер
         private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
         private PieceColor _playerColorForAi = PieceColor.White;
 
@@ -60,6 +61,44 @@ namespace kchess.Graphics
             // 3. Показываем главное меню
             ShowMainMenu(); 
         }
+
+        // === ГЛАВНОЕ МЕНЮ: СЕТЬ ===
+        private void CreateNetworkGame_Click(object? sender, RoutedEventArgs e)
+        {
+            _isNetworkHost = true;
+            // Ведем на выбор стороны, как для ИИ, но с другим заголовком
+            ShowSideSelection("Режим: Онлайн (Хост)\nВыберите вашу сторону");
+        }
+
+        private void JoinNetworkGame_Click(object? sender, RoutedEventArgs e)
+        {
+            _isNetworkHost = false;
+            // Сразу ведем на экран ввода IP
+            ShowJoinPanel();
+        }
+
+        // === ПЕРЕХОДЫ ===
+        private void ShowJoinPanel()
+        {
+            MainMenuPanel.IsVisible = false;
+            AiDifficultyPanel.IsVisible = false;
+            HostSetupPanel.IsVisible = false;
+            SetupPanel.IsVisible = false;
+            GamePanel.IsVisible = false;
+            
+            JoinSetupPanel.IsVisible = true;
+        }
+
+        private void ShowHostSetupPanel()
+        {
+            MainMenuPanel.IsVisible = false;
+            AiDifficultyPanel.IsVisible = false;
+            SetupPanel.IsVisible = false; // Скрываем выбор стороны
+            GamePanel.IsVisible = false;
+            
+            HostSetupPanel.IsVisible = true;
+        }
+
         // Методы навигации
         private void ShowMainMenu()
         {
@@ -110,19 +149,21 @@ namespace kchess.Graphics
             if (sender is Button btn && btn.Tag is string colorTag)
             {
                 bool playAsWhite = (colorTag == "White");
-                
-                // Сохраняем выбор цвета (нужно и для друга, и для ИИ, на всякий случай)
                 _playerColorForAi = playAsWhite ? PieceColor.White : PieceColor.Black;
 
-                if (_isVsAi)
+                if (_isNetworkHost)
                 {
-                    // Режим ИИ: идем выбирать сложность
+                    // Хост выбрал сторону -> идем на экран настройки сервера
+                    ShowHostSetupPanel();
+                }
+                else if (_isVsAi)
+                {
+                    // ИИ -> идем на сложность
                     ShowAiDifficultySelection();
                 }
                 else
                 {
-                    // Режим с другом: запускаем игру СРАЗУ
-                    // Передаем playAsWhite, хотя для локальной игры это пока не критично
+                    // Локальная игра -> старт
                     StartGame(isVsAi: false, playerIsWhite: playAsWhite);
                 }
             }
@@ -192,9 +233,60 @@ namespace kchess.Graphics
         // Возврат из сложности к выбору стороны
         private void BackToSideSelection_Click(object? sender, RoutedEventArgs e)
         {
-            // Просто показываем панель выбора стороны снова
-            ShowSideSelection(SetupTitleText.Text); 
-        }        
+            if (_isNetworkHost)
+            {
+                // Если мы хост и нажали "Назад" в меню сервера -> возвращаемся к выбору стороны
+                ShowSideSelection(SetupTitleText.Text);
+            }
+            else if (_isVsAi)
+            {
+                // Если ИИ -> возвращаемся к выбору стороны
+                ShowSideSelection(SetupTitleText.Text);
+            }
+            else
+            {
+                // Иначе просто в главное меню (защита от дурака)
+                BackToMenu_Click(sender, e);
+            }
+        }       
+
+        // === ДЕЙСТВИЯ (ЗАГЛУШКИ) ===
+        
+        // Когда хост нажал "Создать сервер"
+        private void StartHostServer_Click(object? sender, RoutedEventArgs e)
+        {
+            var vm = this.DataContext as MainViewModel;
+            vm?.SetStatus("Создание сервера... (В разработке)");
+            
+            // Тут позже будет логика запуска сервера
+            // Пока просто возвращаемся или показываем алерт
+            System.Threading.Thread.Sleep(500); // Имитация задержки
+            vm?.SetStatus("Онлайн режим в разработке!");
+            
+            // Можно вернуть назад
+            ShowHostSetupPanel(); 
+        }
+
+        // Когда игрок нажал "Подключиться"
+        private void StartJoinClient_Click(object? sender, RoutedEventArgs e)
+        {
+            string ip = IpInputBox.Text;
+            if (string.IsNullOrWhiteSpace(ip))
+            {
+                var vm = this.DataContext as MainViewModel;
+                vm?.SetStatus("Введите IP адрес!");
+                return;
+            }
+
+            var vm2 = this.DataContext as MainViewModel;
+            vm2?.SetStatus($"Подключение к {ip}... (В разработке)");
+            
+            // Тут позже будет логика клиента
+            System.Threading.Thread.Sleep(500);
+            vm2?.SetStatus("Онлайн режим в разработке!");
+            
+            ShowJoinPanel();
+        }         
 
         private void StartVsAi_Click(object? sender, RoutedEventArgs e)
         {
