@@ -221,34 +221,44 @@ namespace kchess.Graphics
         
         private void BackToMenu_Click(object? sender, RoutedEventArgs e)
         {
-            MainMenuPanel.IsVisible = true;
+            // 1. СБРОС ВСЕХ ФЛАГОВ СОСТОЯНИЯ
+            _isVsAi = false;
+            _isNetworkHost = false;
+            _selectedDifficulty = null;
+            // _playerColorForAi можно не сбрасывать, но для чистоты тоже можно
+            
+            // 2. СКРЫВАЕМ ВСЕ ПАНЕЛИ
+            MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
+            HostSetupPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
+            JoinSetupPanel.IsVisible = false;
+
+            // 3. ПОКАЗЫВАЕМ ГЛАВНОЕ МЕНЮ
+            MainMenuPanel.IsVisible = true;
             
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Главное меню");
         }
-
-        // Возврат из сложности к выбору стороны
+        
         private void BackToSideSelection_Click(object? sender, RoutedEventArgs e)
         {
-            if (_isNetworkHost)
-            {
-                // Если мы хост и нажали "Назад" в меню сервера -> возвращаемся к выбору стороны
-                ShowSideSelection(SetupTitleText.Text);
-            }
-            else if (_isVsAi)
-            {
-                // Если ИИ -> возвращаемся к выбору стороны
-                ShowSideSelection(SetupTitleText.Text);
-            }
-            else
-            {
-                // Иначе просто в главное меню (защита от дурака)
-                BackToMenu_Click(sender, e);
-            }
-        }       
+            // 1. Скрываем ВСЕ лишние панели
+            MainMenuPanel.IsVisible = false;
+            AiDifficultyPanel.IsVisible = false;
+            HostSetupPanel.IsVisible = false; // Важно: скрыть панель сервера
+            JoinSetupPanel.IsVisible = false;
+            GamePanel.IsVisible = false;
+
+            // 2. Показываем панель выбора стороны
+            SetupPanel.IsVisible = true;
+
+            // 3. (Опционально) Обновляем заголовок, если нужно
+            // Если мы были в меню хоста, заголовок уже правильный ("Режим: Онлайн...")
+            // Если были в ИИ - тоже правильный.
+            // Можно ничего не менять в тексте.
+        }    
 
         // === ДЕЙСТВИЯ (ЗАГЛУШКИ) ===
         

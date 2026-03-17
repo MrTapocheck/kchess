@@ -112,7 +112,6 @@
                 <Button Content="Подключиться" Width="220" Click="StartJoinClient_Click" Padding="12,8" FontSize="18" Background="#1976D2" Foreground="White"/>
                 
                 <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,0">
-                    <Button Content="Назад" Width="120" Click="BackToMenu_Click" Padding="8,5" Background="#555" Foreground="White"/>
                     <Button Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
                 </StackPanel>
             </StackPanel>
