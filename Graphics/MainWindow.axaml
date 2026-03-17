@@ -59,31 +59,68 @@
         </Grid>
         <!-- === КОНЕЦ БЛОКА ГЛАВНОГО МЕНЮ === -->
 
-        <!-- ЭКРАН НАСТРОЙКИ (Выбор цвета) С ФОНОМ -->
-        <Grid x:Name="SetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            
-            <!-- СЛОЙ 1: Фоновое изображение -->
-            <Image Source="avares://kchess/Graphics/Assets/color-selection-background.jpeg" 
+        <!-- ЭКРАН ВЫБОРА СЛОЖНОСТИ (ИИ) -->
+        <Grid x:Name="AiDifficultyPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <!-- Фон (замени имя файла на своё, например ai-bg.jpeg) -->
+            <Image Source="avares://kchess/Graphics/Assets/ai-difficulty-bg.jpeg" 
                    Stretch="UniformToFill" 
                    HorizontalAlignment="Center" 
                    VerticalAlignment="Center"/>
             
-            <!-- СЛОЙ 2: Затемнение (чтобы текст читался) -->
+            <!-- Затемнение -->
             <Border Background="#AA000000" 
                     HorizontalAlignment="Stretch" 
                     VerticalAlignment="Stretch"/>
 
-            <!-- СЛОЙ 3: Контент (Кнопки и текст по центру) -->
+            <!-- Контент -->
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
-                <TextBlock Text="Выберите сторону" 
+                <TextBlock Text="Уровень сложности" 
                            FontSize="32" 
                            FontWeight="Bold"
                            Foreground="White" 
                            HorizontalAlignment="Center"
                            Margin="0,0,0,20"/>
                 
-                <Button Content="Играть за Белых" Width="220" Click="ChooseWhite_Click" Padding="10,8" FontSize="16"/>
-                <Button Content="Играть за Черных" Width="220" Click="ChooseBlack_Click" Padding="10,8" FontSize="16"/>
+                <!-- Кнопки сложности (пока заглушки) -->
+                <Button Content="Легкий" Width="220" Click="SelectAiDifficulty_Click" Tag="Easy" Padding="10,8" FontSize="16"/>
+                <Button Content="Средний" Width="220" Click="SelectAiDifficulty_Click" Tag="Medium" Padding="10,8" FontSize="16"/>
+                <Button Content="Сложный" Width="220" Click="SelectAiDifficulty_Click" Tag="Hard" Padding="10,8" FontSize="16"/>
+                
+                <Button Content="Назад" 
+                        Width="120" 
+                        Click="BackToMenu_Click" 
+                        Margin="0,20,0,0" 
+                        Padding="8,5"
+                        Background="#444" 
+                        Foreground="White"
+                        BorderBrush="#666"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ЭКРАН НАСТРОЙКИ (Выбор стороны) - ТЕПЕРЬ УНИВЕРСАЛЬНЫЙ -->
+        <!-- Мы будем использовать эту же панель и для игры с другом, и для игры с ИИ -->
+        <Grid x:Name="SetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Image Source="avares://kchess/Graphics/Assets/color-selection-background.jpeg" 
+                   Stretch="UniformToFill" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"/>
+            
+            <Border Background="#AA000000" 
+                    HorizontalAlignment="Stretch" 
+                    VerticalAlignment="Stretch"/>
+
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
+                <!-- Заголовок будет меняться из кода -->
+                <TextBlock x:Name="SetupTitleText" 
+                           Text="Выберите сторону" 
+                           FontSize="32" 
+                           FontWeight="Bold"
+                           Foreground="White" 
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,20"/>
+                
+                <Button Content="Играть за Белых" Width="220" Click="ChooseSide_Click" Tag="White" Padding="10,8" FontSize="16"/>
+                <Button Content="Играть за Черных" Width="220" Click="ChooseSide_Click" Tag="Black" Padding="10,8" FontSize="16"/>
                 
                 <Button Content="Назад" 
                         Width="120" 
@@ -163,6 +200,8 @@
             <!-- ЛЕВАЯ ЧАСТЬ: Доска (Теперь в Viewbox для сохранения пропорций) -->
 
         </Grid>
+
+        
 
         <!-- КНОПКА НАСТРОЕК (Плавающая в правом верхнем углу) -->
         <!-- Размещаем её поверх всего через отдельный Grid или просто выравниванием -->

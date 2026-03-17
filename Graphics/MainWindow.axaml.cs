@@ -24,6 +24,10 @@ namespace kchess.Graphics
     {
         private AppSettings _settings; 
 
+        // Переменные состояния для игры с ботом
+        private bool _isVsAi = false; // true если игра против ИИ
+        private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
+
         private bool _isWhitePerspective = true;
         private readonly List<Border> _cells = new List<Border>();
         private readonly List<Image> _images = new List<Image>(); 
@@ -48,15 +52,60 @@ namespace kchess.Graphics
 
         }
 
-        // Обработчик кнопки "Выход" в главном меню
-        private void ExitApp_Click(object? sender, RoutedEventArgs e)
+        // === МЕНЮ ВЫБОРА СЛОЖНОСТИ ===
+        private void SelectAiDifficulty_Click(object? sender, RoutedEventArgs e)
         {
-            // Закрываем главное окно, что завершает работу приложения
-            this.Close();
+            if (sender is Button btn && btn.Tag is string difficulty)
+            {
+                _selectedDifficulty = difficulty;
+                
+                // Переходим к выбору стороны, меняя заголовок
+                ShowSideSelection($"Сложность: {difficulty}\nВыберите сторону");
+            }
+        }
+
+        // === МЕНЮ ВЫБОРА СТОРОНЫ (УНИВЕРСАЛЬНОЕ) ===
+        private void ShowSideSelection(string title)
+        {
+            SetupTitleText.Text = title;
             
-            // Альтернативный способ (чтобы прям принудительно закрыть):
-            // Application.Current!.ApplicationLifetime?.Shutdown();
-        }   
+            MainMenuPanel.IsVisible = false;
+            AiDifficultyPanel.IsVisible = false;
+            SetupPanel.IsVisible = true;
+            GamePanel.IsVisible = false;
+        }
+        
+        private void ChooseSide_Click(object? sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string colorTag)
+            {
+                bool playAsWhite = (colorTag == "White");
+
+                if (_isVsAi)
+                {
+                    // === ЗАГЛУШКА ДЛЯ БОТА ===
+                    // Пока бота нет, показываем сообщение и возвращаемся назад
+                    var vm = this.DataContext as MainViewModel;
+                    vm?.SetStatus($"Режим ИИ ({_selectedDifficulty}) еще в разработке!");
+                    
+                    // Можно показать всплывающее окно (MessageBox), если хочешь
+                    // Но пока просто вернемся в меню сложности
+                    ShowAiDifficultySelection();
+                    return; 
+
+                    // КОГДА БОТ БУДЕТ ГОТОВ
+                    // StartGame(isVsAi: true, playerIsWhite: playAsWhite);
+                }
+                else
+                {
+                    // Обычная игра с другом
+                    StartGame(isVsAi: false, playerIsWhite: playAsWhite); // Для локальной игры цвет не важен, но пусть будет
+                }
+            }
+        }
+
+        // Обработчик кнопки "Выход" в главном меню
+        private void ExitApp_Click(object? sender, RoutedEventArgs e) => Close(); 
 
         private void ShowSetup()
         {
@@ -65,52 +114,74 @@ namespace kchess.Graphics
             GamePanel.IsVisible = false;
         }
 
-        private void StartGame(bool isWhite)
+        private void StartGame(bool isVsAi, bool playerIsWhite)
         {
-            _isWhitePerspective = isWhite;
-            
-            // Инициализируем новую игру в ViewModel
+            // Сброс игры
             var vm = this.DataContext as MainViewModel;
-            vm?.NewGame();
+            vm.NewGame();
 
-            // Перерисовываем доску с учетом перспективы
-            BuildChessBoard(_isWhitePerspective);
+            // Тут будет логика инициализации бота, если isVsAi == true
+            // if (isVsAi) { _bot.Initialize(_selectedDifficulty, playerIsWhite ? PieceColor.Black : PieceColor.White); }
 
-            // Переключаем интерфейс
+            // Переключение интерфейса
+            MainMenuPanel.IsVisible = false;
+            AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = true;
+            
+            // Настройка доски (если нужно перевернуть для черных)
+            // if (!playerIsWhite) FlipBoard(); 
         }
         // Обработчик кнопки "В главное меню" из игры
         private void BackToMenuFromGame_Click(object? sender, RoutedEventArgs e)
         {
-            // Спрашиваем подтверждение? Пока просто выходим.
-            // Можно добавить диалог: "Вы уверены? Партия будет потеряна."
-            
-            ShowMainMenu();
-            
-            // Опционально: сбросить игру
-            var vm = this.DataContext as MainViewModel;
-            vm?.NewGame();
+             BackToMenu_Click(sender, e);
         }
 
         // Обработчики кнопок
-        private void StartLocalFriend_Click(object? sender, RoutedEventArgs e) => ShowSetup();
-        
-        private void ChooseWhite_Click(object? sender, RoutedEventArgs e) => StartGame(true);
-        private void ChooseBlack_Click(object? sender, RoutedEventArgs e) => StartGame(false);
-        
-        private void BackToMenu_Click(object? sender, RoutedEventArgs e) => ShowMainMenu();
-        
-        private void StartVsAi_Click(object? sender, RoutedEventArgs e) 
-        { 
-            // Пока просто запускаем за белых, потом добавим выбор сложности
-            StartGame(true); 
+        private void StartLocalFriend_Click(object? sender, RoutedEventArgs e)
+        {
+            _isVsAi = false;
+            
+            // Сразу идем на выбор стороны
+            ShowSideSelection("Выберите сторону");
         }
+        
+        private void BackToMenu_Click(object? sender, RoutedEventArgs e)
+        {
+            MainMenuPanel.IsVisible = true;
+            AiDifficultyPanel.IsVisible = false;
+            SetupPanel.IsVisible = false;
+            GamePanel.IsVisible = false;
+            
+            var vm = this.DataContext as MainViewModel;
+            vm?.SetStatus("Главное меню");
+        }
+        private void StartVsAi_Click(object? sender, RoutedEventArgs e)
+        {
+            _isVsAi = true;
+            _selectedDifficulty = null; // Сброс сложности
+            
+            // Показываем меню выбора сложности
+            MainMenuPanel.IsVisible = false;
+            AiDifficultyPanel.IsVisible = true;
+            SetupPanel.IsVisible = false;
+            GamePanel.IsVisible = false;
+        }
+
+        private void ShowAiDifficultySelection()
+        {
+            MainMenuPanel.IsVisible = false;
+            AiDifficultyPanel.IsVisible = true;
+            SetupPanel.IsVisible = false;
+            GamePanel.IsVisible = false;
+        }        
 
         private void ShowNetworkMenu_Click(object? sender, RoutedEventArgs e)
         {
-            // Тут позже откроем окно ввода IP
-            System.Console.WriteLine("Функция сети в разработке!");
+            // Пока заглушка
+            var vm = this.DataContext as MainViewModel;
+            vm?.SetStatus("Онлайн режим в разработке...");
         }
         
         // ВАЖНО: В конструкторе сразу покажи меню
