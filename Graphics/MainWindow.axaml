@@ -10,20 +10,27 @@
     <!-- Основной Grid -->
     <Grid>
         
-        <!-- === ИЗМЕНЕННЫЙ БЛОК ГЛАВНОГО МЕНЮ С ФОНОМ === -->
-        <!-- Заменили StackPanel на Grid для наложения слоев. Имя MainMenuPanel сохранено для совместимости с кодом. -->
+        <!-- === ОБНОВЛЕННЫЙ БЛОК ГЛАВНОГО МЕНЮ С ЗАТЕМНЕНИЕМ === -->
         <Grid x:Name="MainMenuPanel" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             
-            <!-- СЛОЙ 1: Фоновое изображение (растягивается, сохраняя пропорции, лишнее обрезается) -->
+            <!-- СЛОЙ 1: Фоновое изображение -->
             <Image Source="avares://kchess/Graphics/Assets/main_menu_bg.jpeg" 
                    Stretch="UniformToFill" 
                    HorizontalAlignment="Center" 
                    VerticalAlignment="Center"/>
             
-            <!-- СЛОЙ 2: Контент меню (кнопки и текст по центру) -->
+            <!-- СЛОЙ 2: ЗАТЕМНЕНИЕ (Новый слой!) -->
+            <!-- #AA000000 = черный цвет с прозрачностью ~67%. 
+                 Можно менять первые две цифры (AA) для силы затемнения: 
+                 80 = сильнее, CC = слабее -->
+            <Border Background="#80000000" 
+                    HorizontalAlignment="Stretch" 
+                    VerticalAlignment="Stretch"/>
+            
+            <!-- СЛОЙ 3: Контент меню (кнопки и текст) -->
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="25">
                 
-                <!-- ЗАГОЛОВОК С ЧЕРНОЙ ОБВОДКОЙ (Метод дублирования) -->
+                <!-- ЗАГОЛОВОК С ЧЕРНОЙ ОБВОДКОЙ -->
                 <Grid HorizontalAlignment="Center">
                     <!-- Нижний слой: Черный текст (обводка) -->
                     <TextBlock Text="kchess" 
@@ -52,13 +59,42 @@
         </Grid>
         <!-- === КОНЕЦ БЛОКА ГЛАВНОГО МЕНЮ === -->
 
-        <!-- ЭКРАН НАСТРОЙКИ (Выбор цвета) -->
-        <StackPanel x:Name="SetupPanel" IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
-            <TextBlock Text="Выберите сторону" FontSize="24" HorizontalAlignment="Center"/>
-            <Button Content="Играть за Белых" Width="200" Click="ChooseWhite_Click"/>
-            <Button Content="Играть за Черных" Width="200" Click="ChooseBlack_Click"/>
-            <Button Content="Назад" Width="100" Click="BackToMenu_Click"/>
-        </StackPanel>
+        <!-- ЭКРАН НАСТРОЙКИ (Выбор цвета) С ФОНОМ -->
+        <Grid x:Name="SetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            
+            <!-- СЛОЙ 1: Фоновое изображение -->
+            <Image Source="avares://kchess/Graphics/Assets/color-selection-background.jpeg" 
+                   Stretch="UniformToFill" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"/>
+            
+            <!-- СЛОЙ 2: Затемнение (чтобы текст читался) -->
+            <Border Background="#AA000000" 
+                    HorizontalAlignment="Stretch" 
+                    VerticalAlignment="Stretch"/>
+
+            <!-- СЛОЙ 3: Контент (Кнопки и текст по центру) -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
+                <TextBlock Text="Выберите сторону" 
+                           FontSize="32" 
+                           FontWeight="Bold"
+                           Foreground="White" 
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,20"/>
+                
+                <Button Content="Играть за Белых" Width="220" Click="ChooseWhite_Click" Padding="10,8" FontSize="16"/>
+                <Button Content="Играть за Черных" Width="220" Click="ChooseBlack_Click" Padding="10,8" FontSize="16"/>
+                
+                <Button Content="Назад" 
+                        Width="120" 
+                        Click="BackToMenu_Click" 
+                        Margin="0,20,0,0" 
+                        Padding="8,5"
+                        Background="#444" 
+                        Foreground="White"
+                        BorderBrush="#666"/>
+            </StackPanel>
+        </Grid>
 
         <Grid x:Name="GamePanel" IsVisible="False">
             <!-- Сетка контента: Доска + Правая панель -->

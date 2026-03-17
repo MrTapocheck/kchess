@@ -45,7 +45,7 @@ namespace kchess
         private readonly Dictionary<string, int> _positionHistory = new Dictionary<string, int>();
 
         // Взятие на проходе
-        private Position? _enPassantTarget = null; 
+        public Position? _enPassantTarget = null; 
 
         // Флаги рокировки
         public bool _whiteKingMoved = false;
