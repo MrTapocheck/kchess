@@ -61,39 +61,35 @@
 
         <!-- ЭКРАН ВЫБОРА СЛОЖНОСТИ (ИИ) -->
         <Grid x:Name="AiDifficultyPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <!-- Фон (замени имя файла на своё, например ai-bg.jpeg) -->
             <Image Source="avares://kchess/Graphics/Assets/ai-difficulty-bg.jpeg" 
                    Stretch="UniformToFill" 
                    HorizontalAlignment="Center" 
                    VerticalAlignment="Center"/>
             
-            <!-- Затемнение -->
-            <Border Background="#AA000000" 
-                    HorizontalAlignment="Stretch" 
-                    VerticalAlignment="Stretch"/>
+            <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
-            <!-- Контент -->
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
-                <TextBlock Text="Уровень сложности" 
-                           FontSize="32" 
-                           FontWeight="Bold"
-                           Foreground="White" 
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,20"/>
+                <TextBlock Text="Уровень сложности" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                 
-                <!-- Кнопки сложности (пока заглушки) -->
                 <Button Content="Легкий" Width="220" Click="SelectAiDifficulty_Click" Tag="Easy" Padding="10,8" FontSize="16"/>
                 <Button Content="Средний" Width="220" Click="SelectAiDifficulty_Click" Tag="Medium" Padding="10,8" FontSize="16"/>
                 <Button Content="Сложный" Width="220" Click="SelectAiDifficulty_Click" Tag="Hard" Padding="10,8" FontSize="16"/>
                 
-                <Button Content="Назад" 
-                        Width="120" 
-                        Click="BackToMenu_Click" 
-                        Margin="0,20,0,0" 
-                        Padding="8,5"
-                        Background="#444" 
-                        Foreground="White"
-                        BorderBrush="#666"/>
+                <StackPanel Orientation="Horizontal" Spacing="15" Margin="0,20,0,0" HorizontalAlignment="Center">
+                    <!-- Кнопка НАЗАД: возвращает к выбору стороны -->
+                    <Button Content="Назад" 
+                            Width="120" 
+                            Click="BackToSideSelection_Click" 
+                            Padding="8,5"
+                            Background="#555" Foreground="White" BorderBrush="#777"/>
+                    
+                    <!-- Кнопка В ГЛАВНОЕ МЕНЮ: выход полностью -->
+                    <Button Content="В главное меню" 
+                            Width="140" 
+                            Click="BackToMenu_Click" 
+                            Padding="8,5"
+                            Background="#444" Foreground="White" BorderBrush="#666"/>
+                </StackPanel>
             </StackPanel>
         </Grid>
 
@@ -105,31 +101,21 @@
                    HorizontalAlignment="Center" 
                    VerticalAlignment="Center"/>
             
-            <Border Background="#AA000000" 
-                    HorizontalAlignment="Stretch" 
-                    VerticalAlignment="Stretch"/>
+            <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
-                <!-- Заголовок будет меняться из кода -->
-                <TextBlock x:Name="SetupTitleText" 
-                           Text="Выберите сторону" 
-                           FontSize="32" 
-                           FontWeight="Bold"
-                           Foreground="White" 
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,20"/>
+                <TextBlock x:Name="SetupTitleText" Text="Выберите сторону" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                 
                 <Button Content="Играть за Белых" Width="220" Click="ChooseSide_Click" Tag="White" Padding="10,8" FontSize="16"/>
                 <Button Content="Играть за Черных" Width="220" Click="ChooseSide_Click" Tag="Black" Padding="10,8" FontSize="16"/>
                 
-                <Button Content="Назад" 
-                        Width="120" 
+                <!-- Кнопка НАЗАД теперь ведет в ГЛАВНОЕ МЕНЮ -->
+                <Button Content="В главное меню" 
+                        Width="160" 
                         Click="BackToMenu_Click" 
                         Margin="0,20,0,0" 
                         Padding="8,5"
-                        Background="#444" 
-                        Foreground="White"
-                        BorderBrush="#666"/>
+                        Background="#444" Foreground="White" BorderBrush="#666"/>
             </StackPanel>
         </Grid>
 

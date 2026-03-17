@@ -27,6 +27,7 @@ namespace kchess.Graphics
         // Переменные состояния для игры с ботом
         private bool _isVsAi = false; // true если игра против ИИ
         private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
+        private PieceColor _playerColorForAi = PieceColor.White;
 
         private bool _isWhitePerspective = true;
         private readonly List<Border> _cells = new List<Border>();
@@ -43,6 +44,22 @@ namespace kchess.Graphics
         private Button? _settingsBtn;
         private Popup? _settingsPopup;
 
+        public MainWindow()
+        {
+            // 1. Загрузка настроек
+            _settings = SettingsService.Load();
+            HighlightColor = _settings.GetHighlightColor();            
+            InitializeComponent();
+            
+            // 2. === ВАЖНО: Строим доску сразу при запуске! ===
+            // создаст 64 клетки и заполнит список _cells.
+            // Они будут невидимы, пока мы не покажем GamePanel, но они будут готовы.
+            BuildChessBoard(); 
+            // =================================================
+
+            // 3. Показываем главное меню
+            ShowMainMenu(); 
+        }
         // Методы навигации
         private void ShowMainMenu()
         {
@@ -59,10 +76,23 @@ namespace kchess.Graphics
             {
                 _selectedDifficulty = difficulty;
                 
-                // Переходим к выбору стороны, меняя заголовок
-                ShowSideSelection($"Сложность: {difficulty}\nВыберите сторону");
+                // В текущей реализации тут заглушка, но структура готова
+                TryStartAiGame();
             }
         }
+
+        private void TryStartAiGame()
+        {
+            var vm = this.DataContext as MainViewModel;
+            vm?.SetStatus($"Режим ИИ ({_selectedDifficulty}) в разработке!");
+            
+            // Возвращаемся назад (или остаемся, чтобы пользователь видел сообщение)
+            // ShowAiDifficultySelection(); 
+            
+            /* КОГДА БОТ БУДЕТ ГОТОВ:
+               StartGame(isVsAi: true, playerIsWhite: (_playerColorForAi == PieceColor.White));
+            */
+        }       
 
         // === МЕНЮ ВЫБОРА СТОРОНЫ (УНИВЕРСАЛЬНОЕ) ===
         private void ShowSideSelection(string title)
@@ -80,26 +110,20 @@ namespace kchess.Graphics
             if (sender is Button btn && btn.Tag is string colorTag)
             {
                 bool playAsWhite = (colorTag == "White");
+                
+                // Сохраняем выбор цвета (нужно и для друга, и для ИИ, на всякий случай)
+                _playerColorForAi = playAsWhite ? PieceColor.White : PieceColor.Black;
 
                 if (_isVsAi)
                 {
-                    // === ЗАГЛУШКА ДЛЯ БОТА ===
-                    // Пока бота нет, показываем сообщение и возвращаемся назад
-                    var vm = this.DataContext as MainViewModel;
-                    vm?.SetStatus($"Режим ИИ ({_selectedDifficulty}) еще в разработке!");
-                    
-                    // Можно показать всплывающее окно (MessageBox), если хочешь
-                    // Но пока просто вернемся в меню сложности
+                    // Режим ИИ: идем выбирать сложность
                     ShowAiDifficultySelection();
-                    return; 
-
-                    // КОГДА БОТ БУДЕТ ГОТОВ
-                    // StartGame(isVsAi: true, playerIsWhite: playAsWhite);
                 }
                 else
                 {
-                    // Обычная игра с другом
-                    StartGame(isVsAi: false, playerIsWhite: playAsWhite); // Для локальной игры цвет не важен, но пусть будет
+                    // Режим с другом: запускаем игру СРАЗУ
+                    // Передаем playAsWhite, хотя для локальной игры это пока не критично
+                    StartGame(isVsAi: false, playerIsWhite: playAsWhite);
                 }
             }
         }
@@ -116,35 +140,42 @@ namespace kchess.Graphics
 
         private void StartGame(bool isVsAi, bool playerIsWhite)
         {
-            // Сброс игры
             var vm = this.DataContext as MainViewModel;
+            if (vm == null) return;
+
+            // 1. Сброс игры
             vm.NewGame();
+            vm.SetStatus($"Игра началась! Режим: {(isVsAi ? "ИИ" : "Друг")}");
 
-            // Тут будет логика инициализации бота, если isVsAi == true
-            // if (isVsAi) { _bot.Initialize(_selectedDifficulty, playerIsWhite ? PieceColor.Black : PieceColor.White); }
-
-            // Переключение интерфейса
+            // 2. Жесткое переключение видимости
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
-            GamePanel.IsVisible = true;
             
-            // Настройка доски (если нужно перевернуть для черных)
-            // if (!playerIsWhite) FlipBoard(); 
+            GamePanel.IsVisible = true;
+
+            // 3. ДИАГНОСТИКА: Проверим, видит ли код нашу сетку
+            if (ChessBoardGrid == null)
+            {
+                vm.SetStatus("ОШИБКА: ChessBoardGrid не найден!");
+                return;
+            }
+
+            // 4. Принудительная перерисовка
+            UpdateBoardVisuals();
+            
+            // 5. Фокус на окно (иногда помогает)
+            this.Activate();
         }
+        
         // Обработчик кнопки "В главное меню" из игры
-        private void BackToMenuFromGame_Click(object? sender, RoutedEventArgs e)
-        {
-             BackToMenu_Click(sender, e);
-        }
+        private void BackToMenuFromGame_Click(object? sender, RoutedEventArgs e) => BackToMenu_Click(sender, e);
 
         // Обработчики кнопок
         private void StartLocalFriend_Click(object? sender, RoutedEventArgs e)
         {
             _isVsAi = false;
-            
-            // Сразу идем на выбор стороны
-            ShowSideSelection("Выберите сторону");
+            ShowSideSelection("Режим: Игра с другом\nВыберите сторону");
         }
         
         private void BackToMenu_Click(object? sender, RoutedEventArgs e)
@@ -157,16 +188,21 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Главное меню");
         }
+
+        // Возврат из сложности к выбору стороны
+        private void BackToSideSelection_Click(object? sender, RoutedEventArgs e)
+        {
+            // Просто показываем панель выбора стороны снова
+            ShowSideSelection(SetupTitleText.Text); 
+        }        
+
         private void StartVsAi_Click(object? sender, RoutedEventArgs e)
         {
             _isVsAi = true;
-            _selectedDifficulty = null; // Сброс сложности
+            _selectedDifficulty = null; 
             
-            // Показываем меню выбора сложности
-            MainMenuPanel.IsVisible = false;
-            AiDifficultyPanel.IsVisible = true;
-            SetupPanel.IsVisible = false;
-            GamePanel.IsVisible = false;
+            // Сразу идем на выбор стороны
+            ShowSideSelection("Режим: Против ИИ\nВыберите сторону");
         }
 
         private void ShowAiDifficultySelection()
@@ -175,7 +211,7 @@ namespace kchess.Graphics
             AiDifficultyPanel.IsVisible = true;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
-        }        
+        }      
 
         private void ShowNetworkMenu_Click(object? sender, RoutedEventArgs e)
         {
@@ -184,16 +220,6 @@ namespace kchess.Graphics
             vm?.SetStatus("Онлайн режим в разработке...");
         }
         
-        // ВАЖНО: В конструкторе сразу покажи меню
-        public MainWindow()
-        {
-            _settings = SettingsService.Load();
-            HighlightColor = _settings.GetHighlightColor();            
-            InitializeComponent();
-            ShowMainMenu(); // Скрываем всё, показываем меню
-
-        }
-
         // Метод открытия  универсального диалога
         private void OpenHighlightColorPicker_Click(object? sender, RoutedEventArgs e)
         {
