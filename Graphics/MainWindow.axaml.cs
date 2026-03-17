@@ -480,40 +480,52 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // 1. Если уже есть выбор и мы кликнули на возможный ход -> ХОДИМ
+            // 1. Если уже есть выбор и мы кликнули на возможный ход
             if (_selectedX.HasValue && _selectedY.HasValue)
             {
-                // Проверяем, есть ли клик в списке возможных ходов
                 bool isMoveValid = _possibleMoves.Any(m => m.x == x && m.y == y);
 
                 if (isMoveValid)
                 {
-                    // Делаем ход
+                    // === ПРОВЕРКА НА ПРЕВРАЩЕНИЕ ПЕРЕД ХОДОМ ===
+                    var movingPiece = vm.Board[_selectedY.Value, _selectedX.Value];
+                    bool isPromotion = false;
+
+                    if (movingPiece != null && movingPiece.Type == PieceType.Pawn)
+                    {
+                        // Белая пешка дошла до 0-й горизонтали?
+                        if (movingPiece.Color == PieceColor.White && y == 0) isPromotion = true;
+                        // Черная пешка дошла до 7-й горизонтали?
+                        if (movingPiece.Color == PieceColor.Black && y == 7) isPromotion = true;
+                    }
+
+                    if (isPromotion)
+                    {
+                        // ЕСЛИ ПРЕВРАЩЕНИЕ: Открываем меню выбора и ЖДЕМ. Ход НЕ делаем!
+                        ShowPromotionSelection(_selectedX.Value, _selectedY.Value, x, y);
+                        return; // Важно: выходим из метода, не делая ход!
+                    }
+                    // ===========================================
+
+                    // ЕСЛИ ОБЫЧНЫЙ ХОД: Делаем сразу
                     vm.TryMakeMove(_selectedX.Value, _selectedY.Value, x, y);
                     
-                    // Сбрасываем выделение
                     ClearSelection();
-                    UpdateBoardVisuals(); // Перерисовываем доску (фигуры переместились)
-                    
-                    // Проверка на превращение пешки (если нужно)
-                    if (vm.IsWaitingForPromotion) 
-                    {
-                        ShowPromotionDialog(vm, x, y);
-                    }
+                    UpdateBoardVisuals();
                     return;
                 }
 
                 // Если кликнули не на ход, а на другую свою фигуру -> МЕНЯЕМ ВЫБОР
                 var piece = vm.Board[y, x];
-                bool isMyTurn = vm.CurrentTurnText.Contains("белых"); // Или лучше через Enum
+                bool isMyTurn = vm.CurrentTurnText.Contains("белых"); 
                 PieceColor myColor = isMyTurn ? PieceColor.White : PieceColor.Black;
 
                 if (piece != null && piece.Color == myColor)
                 {
                     _selectedX = x;
                     _selectedY = y;
-                    _possibleMoves = vm.GetLegalMoves(x, y); // Запрашиваем ходы у движка
-                    UpdateBoardVisuals(); // Рисуем призраков
+                    _possibleMoves = vm.GetLegalMoves(x, y);
+                    UpdateBoardVisuals();
                     return;
                 }
 
@@ -550,23 +562,109 @@ namespace kchess.Graphics
             _possibleMoves.Clear();
         }
 
-        private void ShowPromotionDialog(MainViewModel vm, int x, int y)
-        {
-            System.Threading.Tasks.Task.Delay(1000).ContinueWith(_ => 
-            {
-                Dispatcher.UIThread.Post(() => 
-                {
-                    try { vm.SelectPromotionPiece(PieceType.Queen); UpdateBoardVisuals(); }
-                    catch (Exception ex) { vm.SetStatus($"Ошибка: {ex.Message}"); }
-                });
-            });
-            vm.SetStatus("Превращение в Ферзя...");
-        }
-
         private void NewGame_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             var vm = this.DataContext as MainViewModel;
             if (vm != null) { vm.NewGame(); UpdateBoardVisuals(); }
+        }
+
+                private void ShowPromotionSelection(int fromX, int fromY, int toX, int toY)
+        {
+            var vm = this.DataContext as MainViewModel;
+            if (vm == null) return;
+
+            // Создаем панель поверх доски
+            var popupGrid = new Grid
+            {
+                Background = new SolidColorBrush(Color.Parse("#AA000000")), // Затемнение фона
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+
+            // Контейнер для кнопок (по центру)
+            var contentBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#FF2D2D30")),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(20),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                BorderBrush = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(1)
+            };
+
+            var stackPanel = new StackPanel
+            {
+                Spacing = 15,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            // Заголовок
+            stackPanel.Children.Add(new TextBlock
+            {
+                Text = "Превращение пешки!",
+                FontSize = 20,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Colors.White),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            // Панель кнопок
+            var buttonsPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 10,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var pieces = new[] { PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight };
+            var names = new[] { "Ферзь", "Ладья", "Слон", "Конь" };
+            
+            // Цвет нашей пешки
+            var pawnColor = vm.Board[fromY, fromX]?.Color ?? PieceColor.White;
+
+            for (int i = 0; i < 4; i++)
+            {
+                var btn = new Button
+                {
+                    Content = names[i],
+                    Width = 90,
+                    Height = 90,
+                    Tag = pieces[i], // Сохраняем тип фигуры
+                    FontSize = 14,
+                    FontWeight = FontWeight.Bold
+                };
+
+                // Обработчик клика
+                btn.Click += (s, e) =>
+                {
+                    var selectedType = (PieceType)btn.Tag!;
+                    
+                    // 1. Делаем ход с выбранной фигурой
+                    vm.TryMakeMove(fromX, fromY, toX, toY, selectedType);
+                    
+                    // 2. Удаляем окно
+                    if (popupGrid.Parent is Grid parent)
+                        parent.Children.Remove(popupGrid);
+
+                    // 3. Сброс и перерисовка
+                    ClearSelection();
+                    UpdateBoardVisuals();
+                };
+
+                buttonsPanel.Children.Add(btn);
+            }
+
+            stackPanel.Children.Add(buttonsPanel);
+            contentBorder.Child = stackPanel;
+            popupGrid.Children.Add(contentBorder);
+
+            // Добавляем на главный экран
+            if (this.Content is Grid mainGrid)
+            {
+                mainGrid.Children.Add(popupGrid);
+            }
         }
     }
 }

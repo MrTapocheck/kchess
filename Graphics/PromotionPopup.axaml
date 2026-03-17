@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="kchess.Graphics.PromotionPopup"
+             Width="240" Height="80"
+             Background="#2D2D30" BorderBrush="#FFFFFF" BorderThickness="2" CornerRadius="8"
+             HorizontalAlignment="Left" VerticalAlignment="Top">
+    
+    <!-- Контейнер для 4 фигур -->
+    <StackPanel Orientation="Horizontal" Spacing="5" Margin="10" HorizontalAlignment="Center">
+        
+        <!-- Ферзь -->
+        <Button x:Name="BtnQueen" Click="OnPieceSelected" Padding="0" Background="Transparent" BorderThickness="0">
+            <Image Source="/Graphics/Assets/Chess_qlt60.png" Width="50" Height="50"/>
+        </Button>
+
+        <!-- Ладья -->
+        <Button x:Name="BtnRook" Click="OnPieceSelected" Padding="0" Background="Transparent" BorderThickness="0">
+            <Image Source="/Graphics/Assets/Chess_rlt60.png" Width="50" Height="50"/>
+        </Button>
+
+        <!-- Слон -->
+        <Button x:Name="BtnBishop" Click="OnPieceSelected" Padding="0" Background="Transparent" BorderThickness="0">
+            <Image Source="/Graphics/Assets/Chess_blt60.png" Width="50" Height="50"/>
+        </Button>
+
+        <!-- Конь -->
+        <Button x:Name="BtnKnight" Click="OnPieceSelected" Padding="0" Background="Transparent" BorderThickness="0">
+            <Image Source="/Graphics/Assets/Chess_nlt60.png" Width="50" Height="50"/>
+        </Button>
+        
+    </StackPanel>
+</UserControl>

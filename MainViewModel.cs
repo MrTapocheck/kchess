@@ -24,8 +24,6 @@ namespace kchess
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly ChessEngine _engine;
-        private bool _isWaitingForPromotion;
-        private Position? _promotionPosition;
         
         // Коллекция для истории ходов в UI
         public ObservableCollection<MoveDisplayItem> MoveHistoryList { get; }
@@ -33,7 +31,6 @@ namespace kchess
         public MainViewModel()
         {
             _engine = new ChessEngine();
-            _isWaitingForPromotion = false;
             MoveHistoryList = new ObservableCollection<MoveDisplayItem>();
         }
 
@@ -42,10 +39,6 @@ namespace kchess
         public string CurrentTurnText => 
             _engine.IsGameOver ? "Игра окончена" : 
             (_engine.CurrentTurn == PieceColor.White ? "Ход белых" : "Ход черных");
-        
-        public bool IsWaitingForPromotion => _isWaitingForPromotion;
-        public Position? PromotionPosition => _promotionPosition;
-
 
         // Для фантомчиков
         public List<(int x, int y)> GetLegalMoves(int fromX, int fromY)
@@ -172,58 +165,23 @@ namespace kchess
             }
         }
 
-        public void TryMakeMove(int fromX, int fromY, int toX, int toY)
+        public void TryMakeMove(int fromX, int fromY, int toX, int toY, PieceType promotionType = PieceType.Queen)
         {
-            if (_isWaitingForPromotion) return;
-
             try
             {
-                bool success = _engine.TryMove(fromX, fromY, toX, toY);
+                // Пытаемся сделать ход через движок.                
+                bool success = _engine.TryMove(fromX, fromY, toX, toY, promotionType);
                 
                 if (success)
                 {
                     OnPropertyChanged(nameof(Board));
-                    UpdateMoveHistory(); // Обновляем список ходов
+                    UpdateMoveHistory();
                     RefreshProperties();
                 }
                 else
                 {
                     OnPropertyChanged(nameof(StatusMessage));
                 }
-            }
-            catch (PawnPromotionRequiredException ex)
-            {
-                _isWaitingForPromotion = true;
-                _promotionPosition = new Position(ex.X, ex.Y);
-                OnPropertyChanged(nameof(IsWaitingForPromotion));
-                OnPropertyChanged(nameof(PromotionPosition));
-                OnPropertyChanged(nameof(StatusMessage));
-            }
-            catch (Exception ex)
-            {
-                _engine.SetStatus($"Ошибка: {ex.Message}");
-                OnPropertyChanged(nameof(StatusMessage));
-            }
-        }
-
-        public void SelectPromotionPiece(PieceType type)
-        {
-            if (!_isWaitingForPromotion) throw new InvalidOperationException("Нет превращения.");
-
-            try
-            {
-                _engine.CompletePromotion(type);
-                _isWaitingForPromotion = false;
-                _promotionPosition = null;
-                
-                OnPropertyChanged(nameof(Board));
-                UpdateMoveHistory(); // Обновляем список после превращения
-                RefreshProperties();
-            }
-            catch (ArgumentException ex)
-            {
-                _engine.SetStatus($"Ошибка: {ex.Message}");
-                OnPropertyChanged(nameof(StatusMessage));
             }
             catch (Exception ex)
             {
@@ -235,26 +193,6 @@ namespace kchess
         // Метод для новой игры
         public void NewGame()
         {
-            // Пересоздаем движок или инициируем заново
-            // Проще создать новый экземпляр ChessEngine, но тогда нужно сбросить всё
-            // В ChessEngine нет метода Reset, давай создадим новый
-            // Но лучше добавить метод Reset в ChessEngine. Пока сделаем так:
-            
-            // Хак: создаем новый движок (в реальном проекте лучше сделать метод Reset)
-            // Так как поле _engine readonly, нам нужно немного хитрости или рефакторинг.
-            // Давай просто создадим новый ViewModel? Нет, это сложно для UI.
-            
-            // Добавим метод Reset в ChessEngine позже. А пока:
-            // Временное решение: перезапуск приложения? Нет.
-            // Давайте добавим метод в ChessEngine прямо сейчас.
-            
-            // НО ТАК КАК МЫ НЕ МОЖЕМ МЕНЯТЬ ChessEngine ПРЯМО СЕЙЧАС БЕЗ РИСКА,
-            // давай предположим, что ты добавишь простой метод Clear() в ChessEngine.
-            // ИЛИ: мы просто создадим новый экземпляр через рефлексию? Нет.
-            
-            // ЛУЧШЕ: Добавь в ChessEngine метод public void Reset() { ... }
-            // И вызови его здесь.
-            
             // ПОКА ЗАГЛУШКА:
             _engine.InitializeBoard(); // Вызываем полную перезагрузку
             MoveHistoryList.Clear();   // Очищаем UI список

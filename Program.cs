@@ -12,7 +12,6 @@ namespace kchess
         public static void Main(string[] args)
         {
             // 1. Парсим флаги
-            bool consoleMode = args.Contains("--console");
             int testIndex = Array.IndexOf(args, "--test");
             string? testFilePath = (testIndex != -1 && testIndex + 1 < args.Length) ? args[testIndex + 1] : null;
 
@@ -23,54 +22,13 @@ namespace kchess
                 return;
             }
 
-            // 3. Режим консоли (Приоритет №2)
-            if (consoleMode)
-            {
-                RunConsoleMode();
-                return;
-            }
-
             // 4. Режим GUI (По умолчанию, если нет флагов)
             // Запускаем Avalonia
             BuildAvaloniaApp(args).StartWithClassicDesktopLifetime(args);
         }
 
-        // --- ТВОЙ СТАРЫЙ КОД КОНСОЛИ (Без изменений) ---
-        private static void RunConsoleMode()
-        {
-            var viewModel = new MainViewModel();
-            var view = new ConsoleView(viewModel);
-            
-            Console.WriteLine("Запуск kchess в консольном режиме...");
-            bool running = true;
-            while (running)
-            {
-                view.Render();
-                var action = view.GetInput();
 
-                switch (action.Type)
-                {
-                    case UserActionType.Exit:
-                        running = false;
-                        break;
-                    case UserActionType.None:
-                        break;
-                    case UserActionType.Move:
-                        viewModel.TryMakeMove(action.FromX, action.FromY, action.ToX, action.ToY);
-                        break;
-                    case UserActionType.Promotion:
-                        if (action.PromoteTo.HasValue)
-                        {
-                            try { viewModel.SelectPromotionPiece(action.PromoteTo.Value); }
-                            catch (Exception ex) { Console.WriteLine($"Ошибка: {ex.Message}"); System.Threading.Thread.Sleep(1000); }
-                        }
-                        break;
-                }
-            }
-            Console.WriteLine("Игра окончена.");
-        }
-
-        // --- ТВОЙ СТАРЫЙ КОД ТЕСТОВ (Без изменений) ---
+        // --- КОД ТЕСТОВ ---
         private static void RunTestSuite(string filePath)
         {
             if (!File.Exists(filePath))
@@ -113,24 +71,6 @@ namespace kchess
                                 viewModel.StatusMessage.Contains("нет фигуры") ||
                                 viewModel.StatusMessage.Contains("не твой ход");
 
-                if (viewModel.IsWaitingForPromotion)
-                {
-                    Console.WriteLine($"[INFO] Ход #{moveNumber}: Требуется превращение. Авто-выбор: Ферзь.");
-                    viewModel.SelectPromotionPiece(PieceType.Queen);
-                    if (viewModel.StatusMessage.Contains("Ошибка"))
-                    {
-                         Console.WriteLine($"[FAIL] Ход #{moveNumber} ({cleanLine}): Ошибка при превращении: {viewModel.StatusMessage}");
-                         PrintBoard(viewModel);
-                         return;
-                    }
-                }
-
-                if (hasError && !viewModel.IsWaitingForPromotion)
-                {
-                    Console.WriteLine($"[FAIL] Ход #{moveNumber} ({cleanLine}): {viewModel.StatusMessage}");
-                    PrintBoard(viewModel);
-                    return;
-                }
 
                 Console.WriteLine($"[OK] Ход #{moveNumber}: {cleanLine}");
                 isWhiteTurn = !isWhiteTurn;

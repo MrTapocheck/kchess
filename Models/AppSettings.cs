@@ -7,7 +7,6 @@ namespace kchess.Models
         // Поле для хранения цвета в формате строки (например, "#FF0000")
         public string HighlightColorHex { get; set; } = "#FFFF00";
 
-        // === ВОТ ЭТОГО МЕТОДА НЕ ХВАТАЛО ===
         public Color GetHighlightColor()
         {
             // Парсим строку обратно в объект Color

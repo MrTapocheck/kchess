@@ -20,6 +20,14 @@ namespace kchess
         }
     }
 
+        // Где-то в начале файла или в отдельном файле Models
+    public enum MoveResult
+    {
+        Success,
+        InvalidMove,
+        PromotionNeeded // статус выбрать во что превратить пешку
+    }
+
     public class ChessEngine
     {
         public Piece?[,] Board { get; private set; }
@@ -46,8 +54,6 @@ namespace kchess
         public bool _whiteRookQueensideMoved = false;
         public bool _blackRookKingsideMoved = false;
         public bool _blackRookQueensideMoved = false;
-
-        private Position? _pendingPromotionPos = null;
 
         public ChessEngine()
         {
@@ -93,7 +99,6 @@ namespace kchess
             IsGameOver = false;
             LastStatus = "Игра началась";
             CurrentTurn = PieceColor.White;
-            _pendingPromotionPos = null;
             _enPassantTarget = null;
             ResetCastlingFlags();
 
@@ -367,10 +372,9 @@ namespace kchess
             return false;
         }
 
-        public bool TryMove(int fromX, int fromY, int toX, int toY)
+        public bool TryMove(int fromX, int fromY, int toX, int toY, PieceType promotionType = PieceType.Queen)
         {
             if (IsGameOver) { LastStatus = "Игра окончена"; return false; }
-            if (_pendingPromotionPos.HasValue) { LastStatus = "Ожидается выбор фигуры"; return false; }
             if (!IsValidCoordinate(fromX, fromY) || !IsValidCoordinate(toX, toY)) { LastStatus = "Координаты вне доски"; return false; }
 
             var piece = Board[fromY, fromX];
@@ -592,13 +596,21 @@ namespace kchess
             // --- ОБРАБОТКА ПРЕВРАЩЕНИЯ ---
             if (isPromotionNeeded)
             {
-                _pendingPromotionPos = new Position(toX, toY);
-                LastStatus = "Требуется выбор фигуры для превращения пешки!";
+                // ИСПОЛЬЗУЕМ МЕТОД CreatePiece
+                Board[toY, toX] = CreatePiece(movingPiece.Color, promotionType);
                 
-                // Добавляем ход в историю БЕЗ фигуры превращения (добавим позже в CompletePromotion)
-                MoveHistory.Add(moveNotation);
+                // Обновляем нотацию хода (добавляем букву фигуры, например e7-e8=Q)
+                string pieceCode = promotionType switch
+                {
+                    PieceType.Queen => "Q",
+                    PieceType.Rook => "R",
+                    PieceType.Bishop => "B",
+                    PieceType.Knight => "N",
+                    _ => "?"
+                };
+                moveNotation += "=" + pieceCode;
                 
-                throw new PawnPromotionRequiredException(toX, toY, movingPiece.Color);
+                LastStatus = $"Превращение пешки в {promotionType}!";
             }
 
             // Если превращения нет, добавляем ход как есть
@@ -665,85 +677,6 @@ namespace kchess
             }
 
             return true;
-        }
-
-        public void CompletePromotion(PieceType newType)
-        {
-            if (!_pendingPromotionPos.HasValue)
-                throw new InvalidOperationException("Нет активного процесса превращения.");
-
-            if (newType == PieceType.Pawn || newType == PieceType.King)
-                throw new ArgumentException("Нельзя превратить в пешку или короля.");
-
-            int x = _pendingPromotionPos.Value.X;
-            int y = _pendingPromotionPos.Value.Y;
-            var currentPiece = Board[y, x];
-            if (currentPiece == null) throw new InvalidOperationException("Фигура не найдена.");
-
-            var color = currentPiece.Color;
-            Board[y, x] = CreatePiece(color, newType);
-            
-            // Обновляем нотацию последнего хода
-            char promoChar = newType switch { PieceType.Queen=>'Q', PieceType.Rook=>'R', PieceType.Bishop=>'B', PieceType.Knight=>'N', _=>' ' };
-            if (MoveHistory.Count > 0)
-                MoveHistory[MoveHistory.Count - 1] += "=" + promoChar;
-
-            _pendingPromotionPos = null;
-            
-            // ВАЖНО: Позиция изменилась (пешка стала фигурой). Нужно перезаписать хеш!
-            // Удаляем старую запись этого хеша (которая была сделана в TryMove до превращения)
-            // И записываем новый хеш с новой фигурой.
-            // Проще всего: уменьшить счетчик последней записанной позиции (так как она еще не полная) 
-            // и записать новую правильную.
-            
-            // Но так как GetPositionHash зависит от доски, а доска уже обновлена:
-            // 1. Получаем хеш текущей (новой) позиции.
-            string newHash = GetPositionHash();
-            
-            // 2. Так как в TryMove мы уже сделали RecordPosition() для позиции С ПЕШКОЙ,
-            // нам нужно корректно учесть позицию С ФЕРЗЕМ.
-            // Самый надежный способ: просто вызвать RecordPosition() еще раз.
-            // Это увеличит счетчик для новой позиции. Если она совпадет с какой-то старой (маловероятно сразу), учтется.
-            // Но важно: позиция с пешкой, которую мы записали ранее, теперь неактуальна.
-            // Однако, поскольку пешка на 8-й горизонтали — это нелегальная позиция (она должна превратиться),
-            // тот хеш больше никогда не повторится. Так что просто добавляем новый хеш.
-            RecordPosition();
-
-            bool opponentInCheck = IsKingInCheck(CurrentTurn);
-            bool opponentHasMoves = HasLegalMoves(CurrentTurn);
-            bool gameOverReasonFound = false;
-
-            if (!opponentHasMoves)
-            {
-                IsGameOver = true;
-                var winner = (CurrentTurn == PieceColor.White) ? "черные" : "белые";
-                LastStatus = opponentInCheck ? $"МАТ! Победили {winner}!" : "ПАТ! Ничья.";
-                gameOverReasonFound = true;
-            }
-
-            if (!gameOverReasonFound && CheckInsufficientMaterial())
-            {
-                 IsGameOver = true;
-                 LastStatus = "Ничья из-за недостаточности материала!";
-                 gameOverReasonFound = true;
-            }
-
-            if (!gameOverReasonFound)
-            {
-                // Проверка повторений уже с новой фигурой
-                string currentHash = GetPositionHash();
-                if (_positionHistory.ContainsKey(currentHash) && _positionHistory[currentHash] >= 3)
-                {
-                    IsGameOver = true;
-                    LastStatus = "Ничья из-за троекратного повторения позиции!";
-                    gameOverReasonFound = true;
-                }
-            }
-
-            if (!gameOverReasonFound)
-            {
-                LastStatus = opponentInCheck ? $"Шах! Ход {(CurrentTurn == PieceColor.White ? "белых" : "черных")}." : LastStatus;
-            }
         }
 
         private bool IsValidCoordinate(int x, int y) => x >= 0 && x < 8 && y >= 0 && y < 8;
