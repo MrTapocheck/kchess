@@ -214,7 +214,6 @@ namespace kchess.Graphics
             _isVsAi = false;
             _isNetworkHost = false;
             _selectedDifficulty = null;
-            _playerColorForAi
             
             // СКРЫВАЕМ ВСЕ ПАНЕЛИ
             MainMenuPanel.IsVisible = false;
