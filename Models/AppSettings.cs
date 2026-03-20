@@ -9,11 +9,11 @@ namespace kchess.Models
 
         public Color GetHighlightColor()
         {
-            // Парсим строку обратно в объект Color
+            // Парсинг строки обратно в объект Color
             return Color.Parse(HighlightColorHex);
         }
 
-        // Метод для сохранения в строку формата "ключ=значение"
+        // Метод для сохранения в строку
         public string ToConfString()
         {
             return $"HighlightColorHex={HighlightColorHex}";

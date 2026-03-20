@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using Avalonia;
 using kchess;
-using kchess.Graphics; // Подключаем нашу папку с графикой
+using kchess.Graphics;
 
 namespace kchess
 {
@@ -15,20 +15,20 @@ namespace kchess
             int testIndex = Array.IndexOf(args, "--test");
             string? testFilePath = (testIndex != -1 && testIndex + 1 < args.Length) ? args[testIndex + 1] : null;
 
-            // 2. Режим тестирования из файла (Приоритет №1)
+            // 2. Режим тестирования из файла (Приоритет №1) ((в ходе разработки консоль атрофировалась))
             if (testFilePath != null)
             {
                 RunTestSuite(testFilePath);
                 return;
             }
 
-            // 4. Режим GUI (По умолчанию, если нет флагов)
+            // 4. Режим GUI (По умолчанию)
             // Запускаем Avalonia
             BuildAvaloniaApp(args).StartWithClassicDesktopLifetime(args);
         }
 
 
-        // --- КОД ТЕСТОВ ---
+        // КОД ТЕСТОВ
         private static void RunTestSuite(string filePath)
         {
             if (!File.Exists(filePath))
@@ -129,7 +129,7 @@ namespace kchess
             Console.WriteLine("-----------------------\n");
         }
 
-        // --- НОВАЯ ЧАСТЬ: ЗАПУСК AVALONIA ---
+        //  ЗАПУСК AVALONIA 
         public static AppBuilder BuildAvaloniaApp(string[] args)
             => AppBuilder.Configure<App>() // App теперь находится в namespace kchess.Graphics
                 .UsePlatformDetect()

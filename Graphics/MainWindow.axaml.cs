@@ -36,7 +36,7 @@ namespace kchess.Graphics
         private int? _selectedX;
         private int? _selectedY;
 
-        //для подсветки
+        // для подсветки
         private List<(int x, int y)> _possibleMoves = new List<(int, int)>(); 
         public Color HighlightColor { get; set; } = Color.Parse("#FFFF00");
 
@@ -47,37 +47,33 @@ namespace kchess.Graphics
 
         public MainWindow()
         {
-            // 1. Загрузка настроек
+            // Загрузка настроек
             _settings = SettingsService.Load();
             HighlightColor = _settings.GetHighlightColor();            
             InitializeComponent();
             
-            // 2. === ВАЖНО: Строим доску сразу при запуске! ===
-            // создаст 64 клетки и заполнит список _cells.
-            // Они будут невидимы, пока мы не покажем GamePanel, но они будут готовы.
+            // Строим доску сразу при запуске
             BuildChessBoard(); 
-            // =================================================
-
-            // 3. Показываем главное меню
+            // Показываем главное меню
             ShowMainMenu(); 
         }
 
-        // === ГЛАВНОЕ МЕНЮ: СЕТЬ ===
+        // ГЛАВНОЕ МЕНЮ: СЕТЬ 
         private void CreateNetworkGame_Click(object? sender, RoutedEventArgs e)
         {
             _isNetworkHost = true;
-            // Ведем на выбор стороны, как для ИИ, но с другим заголовком
+            // переход на выбор стороны
             ShowSideSelection("Режим: Онлайн (Хост)\nВыберите вашу сторону");
         }
 
         private void JoinNetworkGame_Click(object? sender, RoutedEventArgs e)
         {
             _isNetworkHost = false;
-            // Сразу ведем на экран ввода IP
+            // на экран ввода IP
             ShowJoinPanel();
         }
 
-        // === ПЕРЕХОДЫ ===
+        // ПЕРЕХОДЫ 
         private void ShowJoinPanel()
         {
             MainMenuPanel.IsVisible = false;
@@ -93,7 +89,7 @@ namespace kchess.Graphics
         {
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
-            SetupPanel.IsVisible = false; // Скрываем выбор стороны
+            SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
             
             HostSetupPanel.IsVisible = true;
@@ -108,14 +104,12 @@ namespace kchess.Graphics
 
         }
 
-        // === МЕНЮ ВЫБОРА СЛОЖНОСТИ ===
+        // МЕНЮ ВЫБОРА СЛОЖНОСТИ 
         private void SelectAiDifficulty_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string difficulty)
             {
                 _selectedDifficulty = difficulty;
-                
-                // В текущей реализации тут заглушка, но структура готова
                 TryStartAiGame();
             }
         }
@@ -124,16 +118,12 @@ namespace kchess.Graphics
         {
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus($"Режим ИИ ({_selectedDifficulty}) в разработке!");
-            
-            // Возвращаемся назад (или остаемся, чтобы пользователь видел сообщение)
-            // ShowAiDifficultySelection(); 
-            
-            /* КОГДА БОТ БУДЕТ ГОТОВ:
+            /* на будущее
                StartGame(isVsAi: true, playerIsWhite: (_playerColorForAi == PieceColor.White));
             */
         }       
 
-        // === МЕНЮ ВЫБОРА СТОРОНЫ (УНИВЕРСАЛЬНОЕ) ===
+        // МЕНЮ ВЫБОРА СТОРОНЫ (УНИВЕРСАЛЬНОЕ)
         private void ShowSideSelection(string title)
         {
             SetupTitleText.Text = title;
@@ -184,28 +174,27 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // 1. Сброс игры
+            // Сброс игры
             vm.NewGame();
             vm.SetStatus($"Игра началась! Режим: {(isVsAi ? "ИИ" : "Друг")}");
 
-            // 2. Жесткое переключение видимости
+            // Жесткое переключение видимости
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             
             GamePanel.IsVisible = true;
 
-            // 3. ДИАГНОСТИКА: Проверим, видит ли код нашу сетку
             if (ChessBoardGrid == null)
             {
                 vm.SetStatus("ОШИБКА: ChessBoardGrid не найден!");
                 return;
             }
 
-            // 4. Принудительная перерисовка
+            // Принудительная перерисовка
             UpdateBoardVisuals();
             
-            // 5. Фокус на окно (иногда помогает)
+            // Фокус на окно (иногда помогает)
             this.Activate();
         }
         
@@ -221,13 +210,13 @@ namespace kchess.Graphics
         
         private void BackToMenu_Click(object? sender, RoutedEventArgs e)
         {
-            // 1. СБРОС ВСЕХ ФЛАГОВ СОСТОЯНИЯ
+            // СБРОС ВСЕХ ФЛАГОВ СОСТОЯНИЯ
             _isVsAi = false;
             _isNetworkHost = false;
             _selectedDifficulty = null;
-            // _playerColorForAi можно не сбрасывать, но для чистоты тоже можно
+            _playerColorForAi
             
-            // 2. СКРЫВАЕМ ВСЕ ПАНЕЛИ
+            // СКРЫВАЕМ ВСЕ ПАНЕЛИ
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             HostSetupPanel.IsVisible = false;
@@ -235,7 +224,7 @@ namespace kchess.Graphics
             GamePanel.IsVisible = false;
             JoinSetupPanel.IsVisible = false;
 
-            // 3. ПОКАЗЫВАЕМ ГЛАВНОЕ МЕНЮ
+            // ПОКАЗЫВАЕМ ГЛАВНОЕ МЕНЮ
             MainMenuPanel.IsVisible = true;
             
             var vm = this.DataContext as MainViewModel;
@@ -244,36 +233,27 @@ namespace kchess.Graphics
         
         private void BackToSideSelection_Click(object? sender, RoutedEventArgs e)
         {
-            // 1. Скрываем ВСЕ лишние панели
+            // Скрываем лишние панели
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
-            HostSetupPanel.IsVisible = false; // Важно: скрыть панель сервера
+            HostSetupPanel.IsVisible = false;
             JoinSetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
 
-            // 2. Показываем панель выбора стороны
+            // Показываем панель выбора стороны
             SetupPanel.IsVisible = true;
-
-            // 3. (Опционально) Обновляем заголовок, если нужно
-            // Если мы были в меню хоста, заголовок уже правильный ("Режим: Онлайн...")
-            // Если были в ИИ - тоже правильный.
-            // Можно ничего не менять в тексте.
         }    
 
-        // === ДЕЙСТВИЯ (ЗАГЛУШКИ) ===
-        
+        // ЗАГЛУШКИ
         // Когда хост нажал "Создать сервер"
         private void StartHostServer_Click(object? sender, RoutedEventArgs e)
         {
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Создание сервера... (В разработке)");
             
-            // Тут позже будет логика запуска сервера
-            // Пока просто возвращаемся или показываем алерт
             System.Threading.Thread.Sleep(500); // Имитация задержки
             vm?.SetStatus("Онлайн режим в разработке!");
-            
-            // Можно вернуть назад
+
             ShowHostSetupPanel(); 
         }
 

@@ -6,7 +6,6 @@ namespace kchess.Services
 {
     public static class SettingsService
     {
-        // Имя файла теперь .conf
         private static readonly string FilePath = "kchess.conf";
 
         public static AppSettings Load()
@@ -30,8 +29,8 @@ namespace kchess.Services
         public static void Save(AppSettings settings)
         {
             try
-            {
-                // Добавляем заголовок-комментарий для красоты
+            {   
+                //в конфиге предупреждение, чтобы не тыкали
                 string content = "# kchess configuration file\n" + 
                                  "# Do not edit manually unless you know what you are doing\n" +
                                  settings.ToConfString() + "\n";

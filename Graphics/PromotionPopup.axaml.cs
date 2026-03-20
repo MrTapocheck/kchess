@@ -46,7 +46,7 @@ namespace kchess.Graphics
 
         private void OnPieceSelected(object? sender, RoutedEventArgs e)
         {
-            PieceType chosenType = PieceType.Pawn; // Заглушка
+            PieceType chosenType = PieceType.Pawn; // надо присваивать перед использованием
 
             if (sender == BtnQueen) chosenType = PieceType.Queen;
             else if (sender == BtnRook) chosenType = PieceType.Rook;

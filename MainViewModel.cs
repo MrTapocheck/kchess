@@ -2,23 +2,21 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Linq;
-using System.Collections.ObjectModel; // Важно для ObservableCollection
+using System.Collections.ObjectModel; // для ObservableCollection
 using kchess;
 using System.Collections.Generic;
 
 namespace kchess
 {
-    /// <summary>
     /// Модель одного элемента в списке истории ходов.
-    /// </summary>
     public class MoveDisplayItem
     {
         public int MoveNumber { get; set; } // Номер хода (1, 2, 3...)
         public string WhiteMove { get; set; } = ""; // Ход белых (например, "e2-e4")
         public string BlackMove { get; set; } = ""; // Ход черных (пусто, если ход еще не сделан)
         
-        // Свойства для иконок (можно парсить строку, но пока оставим текст)
-        // В будущем тут можно добавить пути к картинкам
+        // Свойства для иконок (можно парсить строку, но пока только текст)
+        // В будущем тут можно добавить пути к картинкам фигур
     }
 
     public class MainViewModel : INotifyPropertyChanged
@@ -61,7 +59,7 @@ namespace kchess
                 int toX = move.X;
                 int toY = move.Y;
                 
-                // --- ПЕСОЧНИЦА ---
+                // ПЕСОЧНИЦА 
                 var captured = engine.Board[toY, toX];
                 
                 // Делаем ход временно
@@ -82,8 +80,8 @@ namespace kchess
             }
             
             // 3. === ОТДЕЛЬНАЯ ПРОВЕРКА НА ВЗЯТИЕ НА ПРОХОДЕ (EN PASSANT) ===
-            // Геометрические ходы пешки не включают диагональный ход на пустую клетку.
-            // Поэтому мы проверяем его вручную здесь.
+            // Геометрические ходы пешки не включают диагональный ход на пустую клетку
+            // Поэтому проверка вручную здесь
             if (piece.Type == PieceType.Pawn)
             {
                 if (engine._enPassantTarget.HasValue)
@@ -91,13 +89,13 @@ namespace kchess
                     int epX = engine._enPassantTarget.Value.X;
                     int epY = engine._enPassantTarget.Value.Y;
 
-                    // Проверяем, бьет ли наша пешка эту цель
-                    // Условие: целевая клетка должна быть по диагонали спереди от пешки
+                    // бьет ли наша пешка эту цель
+                    // Условие целевая клетка должна быть по диагонали спереди от пешки
                     int direction = (piece.Color == PieceColor.White) ? -1 : 1;
                     
                     if (epY == fromY + direction && Math.Abs(epX - fromX) == 1)
                     {
-                        // Это кандидат на взятие! Теперь проверим, не под шахом ли мы окажемся
+                        // Это кандидат на взятие Теперь проверим, не под шахом ли мы окажемся
                         // Для этого симулируем ход:
                         // 1. Ставим пешку на target (epX, epY)
                         // 2. Убираем вражескую пешку, которая стоит рядом (fromY, epX)
@@ -121,7 +119,7 @@ namespace kchess
 
                             if (!isCheckAfterEp)
                             {
-                                // ВСЁ ЧИСТО! Добавляем координату взятия в список
+                                // всё норм Добавляем координату взятия в список
                                 legalMoves.Add((epX, epY));
                             }
                         }
@@ -130,13 +128,13 @@ namespace kchess
             }
             // ================================================================
 
-            // 4. === ДОБАВЛЯЕМ РОКИРОВКУ ===
+            // 4. РОКИРОВКА 
             if (piece.Type == PieceType.King && !engine.IsKingInCheck(piece.Color))
             {
                 int y = fromY;
                 bool isWhite = piece.Color == PieceColor.White;
                 
-                // --- КОРОТКАЯ РОКИРОВКА (O-O) ---
+                // КОРОТКАЯ РОКИРОВКА (O-O) 
                 bool canCastleKingside = isWhite ? !engine._whiteKingMoved && !engine._whiteRookKingsideMoved 
                                                  : !engine._blackKingMoved && !engine._blackRookKingsideMoved;
                 
@@ -154,7 +152,7 @@ namespace kchess
                     }
                 }
 
-                // --- ДЛИННАЯ РОКИРОВКА (O-O-O) ---
+                // ДЛИННАЯ РОКИРОВКА (O-O-O) 
                 bool canCastleQueenside = isWhite ? !engine._whiteKingMoved && !engine._whiteRookQueensideMoved 
                                                   : !engine._blackKingMoved && !engine._blackRookQueensideMoved;
                 
@@ -181,7 +179,7 @@ namespace kchess
         {
             var moves = _engine.MoveHistory;
             
-            // Очищаем и заполняем заново (простой способ, для 100 ходов быстро)
+            // Очищаем и заполняем заново
             MoveHistoryList.Clear();
             
             for (int i = 0; i < moves.Count; i += 2)
@@ -203,7 +201,7 @@ namespace kchess
         {
             try
             {
-                // Пытаемся сделать ход через движок.                
+                // попытка сделать ход через движок            
                 bool success = _engine.TryMove(fromX, fromY, toX, toY, promotionType);
                 
                 if (success)
@@ -227,16 +225,12 @@ namespace kchess
         // Метод для новой игры
         public void NewGame()
         {
-            // ПОКА ЗАГЛУШКА:
             _engine.InitializeBoard(); // Вызываем полную перезагрузку
             MoveHistoryList.Clear();   // Очищаем UI список
             RefreshProperties();       // Обновляем статусы
             OnPropertyChanged(nameof(Board)); // Сообщаем UI, что доска изменилась
         }
         
-        // Нужно сделать InitializeBoard публичным в ChessEngine или добавить Reset()
-        // Давай в следующем шаге поправим ChessEngine.
-
         private void RefreshProperties()
         {
             OnPropertyChanged(nameof(StatusMessage));
