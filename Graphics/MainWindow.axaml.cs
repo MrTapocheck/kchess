@@ -30,7 +30,6 @@ namespace kchess.Graphics
         private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
         private PieceColor _playerColorForAi = PieceColor.White;
 
-        private bool _isWhitePerspective = true;
         private readonly List<Border> _cells = new List<Border>();
         private readonly List<Image> _images = new List<Image>(); 
         private int? _selectedX;
@@ -39,11 +38,6 @@ namespace kchess.Graphics
         // для подсветки
         private List<(int x, int y)> _possibleMoves = new List<(int, int)>(); 
         public Color HighlightColor { get; set; } = Color.Parse("#FFFF00");
-
-        // Таймер для проверки состояния мыши (Polling)
-        private Timer? _hoverTimer;
-        private Button? _settingsBtn;
-        private Popup? _settingsPopup;
 
         public MainWindow()
         {
@@ -256,10 +250,11 @@ namespace kchess.Graphics
             ShowHostSetupPanel(); 
         }
 
-        // Когда игрок нажал "Подключиться"
         private void StartJoinClient_Click(object? sender, RoutedEventArgs e)
         {
-            string ip = IpInputBox.Text;
+            // если Text вдруг null, берем пустую строку
+            string ip = IpInputBox.Text ?? string.Empty;
+            
             if (string.IsNullOrWhiteSpace(ip))
             {
                 var vm = this.DataContext as MainViewModel;
@@ -270,12 +265,11 @@ namespace kchess.Graphics
             var vm2 = this.DataContext as MainViewModel;
             vm2?.SetStatus($"Подключение к {ip}... (В разработке)");
             
-            // Тут позже будет логика клиента
             System.Threading.Thread.Sleep(500);
             vm2?.SetStatus("Онлайн режим в разработке!");
             
             ShowJoinPanel();
-        }         
+        }   
 
         private void StartVsAi_Click(object? sender, RoutedEventArgs e)
         {
@@ -482,7 +476,7 @@ namespace kchess.Graphics
                 // 2. Призрак хода
                 bool isPossibleMove = _possibleMoves.Any(m => m.x == x && m.y == y);
                 var ghostImage = gridContainer.Children
-                    .FirstOrDefault(c => c is Image i && i.Name.StartsWith("Ghost")) as Image;
+                    .FirstOrDefault(c => c is Image i && i.Name != null && i.Name.StartsWith("Ghost")) as Image;
 
                 if (isPossibleMove)
                 {
@@ -519,8 +513,7 @@ namespace kchess.Graphics
 
                 // 3. Реальная фигура
                 var realImage = gridContainer.Children
-                    .FirstOrDefault(c => c is Image i && i.Name.StartsWith("PieceImage_")) as Image;
-
+                    .FirstOrDefault(c => c is Image i && i.Name != null && i.Name.StartsWith("PieceImage_")) as Image;
                 if (realImage != null)
                 {
                     if (piece != null)

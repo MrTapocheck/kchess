@@ -400,9 +400,12 @@ namespace kchess
                     isEnPassantCapture = true;
                     int capturedPawnY = fromY;
                     epCapturedPos = new Position(toX, capturedPawnY);
-                    if (Board[capturedPawnY, toX] == null || Board[capturedPawnY, toX].Type != PieceType.Pawn || Board[capturedPawnY, toX].Color == piece.Color)
+                    var capturedPawn = Board[capturedPawnY, toX];
+
+                    if (capturedPawn == null || capturedPawn.Type != PieceType.Pawn || capturedPawn.Color == piece.Color)
                     {
-                        LastStatus = "Ошибка логики взятия на проходе"; return false;
+                        LastStatus = "Ошибка логики взятия на проходе"; 
+                        return false;
                     }
                 }
                 else { LastStatus = "Недопустимый ход (взятие на проходе невозможно)"; return false; }
@@ -481,15 +484,15 @@ namespace kchess
             Board[toY, toX] = movingPiece;
             Board[fromY, fromX] = null;
 
-            bool isCaptureOrPawnMove = (capturedPiece != null || isEnPassantCapture || movingPiece.Type == PieceType.Pawn);
-            
+            bool isCaptureOrPawnMove = (capturedPiece != null || isEnPassantCapture || (movingPiece != null && movingPiece.Type == PieceType.Pawn));
+
             if (isEnPassantCapture && epCapturedPos.HasValue)
             {
                 Board[epCapturedPos.Value.Y, epCapturedPos.Value.X] = null;
                 LastStatus = "Взятие на проходе!";
             }
 
-            if (movingPiece.Type == PieceType.Pawn && Math.Abs(toY - fromY) == 2)
+            if (movingPiece != null && movingPiece.Type == PieceType.Pawn && Math.Abs(toY - fromY) == 2)
             {
                 int epY = (fromY + toY) / 2;
                 _enPassantTarget = new Position(toX, epY);
@@ -508,7 +511,7 @@ namespace kchess
                 else _blackKingMoved = true;
             }
 
-            if (movingPiece.Type == PieceType.Rook)
+            if (movingPiece != null && movingPiece.Type == PieceType.Rook)
             {
                 if (CurrentTurn == PieceColor.White)
                 {
@@ -522,7 +525,7 @@ namespace kchess
                 }
             }
             
-            if (movingPiece.Type == PieceType.King && !isCastlingAttempt)
+            if (movingPiece != null && movingPiece.Type == PieceType.King && !isCastlingAttempt)
             {
                 if (CurrentTurn == PieceColor.White) _whiteKingMoved = true;
                 else _blackKingMoved = true;
@@ -534,9 +537,9 @@ namespace kchess
             else
                 _halfMoveClock++;
 
-            bool isPromotionNeeded = (movingPiece.Type == PieceType.Pawn) && 
-                                     ((movingPiece.Color == PieceColor.White && toY == 0) || 
-                                      (movingPiece.Color == PieceColor.Black && toY == 7));
+            bool isPromotionNeeded = (movingPiece != null && movingPiece.Type == PieceType.Pawn) && 
+                                    ((movingPiece.Color == PieceColor.White && toY == 0) || 
+                                    (movingPiece.Color == PieceColor.Black && toY == 7));
 
             // подготовка нотации хода 
             string files = "abcdefgh";
