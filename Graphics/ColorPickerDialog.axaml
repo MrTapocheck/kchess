@@ -39,7 +39,7 @@
                      HorizontalContentAlignment="Center"/>
         </StackPanel>
 
-        <!-- КНОПКИ (Самое важное!) -->
+        <!-- КНОПКИ -->
         <Grid ColumnDefinitions="*,*" Margin="0,20,0,0">
             <Button Grid.Column="0" Content="ОТМЕНА" Click="CancelClick" 
                     Margin="0,0,5,0" Padding="12" Background="#555" Foreground="White" FontWeight="Bold"/>

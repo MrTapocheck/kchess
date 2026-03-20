@@ -7,32 +7,23 @@
         WindowStartupLocation="CenterScreen"
         x:DataType="vm:MainViewModel">
 
-    <!-- Основной Grid -->
     <Grid>
         
-        <!-- === ОБНОВЛЕННЫЙ БЛОК ГЛАВНОГО МЕНЮ С ЗАТЕМНЕНИЕМ === -->
+        <!-- Главное меню -->
         <Grid x:Name="MainMenuPanel" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             
-            <!-- СЛОЙ 1: Фоновое изображение -->
             <Image Source="avares://kchess/Graphics/Assets/main_menu_bg.jpeg" 
                    Stretch="UniformToFill" 
                    HorizontalAlignment="Center" 
                    VerticalAlignment="Center"/>
             
-            <!-- СЛОЙ 2: ЗАТЕМНЕНИЕ (Новый слой!) -->
-            <!-- #AA000000 = черный цвет с прозрачностью ~67%. 
-                 Можно менять первые две цифры (AA) для силы затемнения: 
-                 80 = сильнее, CC = слабее -->
             <Border Background="#80000000" 
                     HorizontalAlignment="Stretch" 
                     VerticalAlignment="Stretch"/>
             
-            <!-- СЛОЙ 3: Контент меню (кнопки и текст) -->
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="25">
                 
-                <!-- ЗАГОЛОВОК С ЧЕРНОЙ ОБВОДКОЙ -->
                 <Grid HorizontalAlignment="Center">
-                    <!-- Нижний слой: Черный текст (обводка) -->
                     <TextBlock Text="kchess" 
                                FontSize="48" 
                                FontWeight="Bold"
@@ -40,7 +31,6 @@
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"/>
                     
-                    <!-- Верхний слой: Белый текст (основной) -->
                     <TextBlock Text="kchess" 
                                FontSize="48" 
                                FontWeight="Bold"
@@ -49,7 +39,6 @@
                                VerticalAlignment="Center"/>
                 </Grid>
 
-                <!-- КНОПКИ -->
                 <Button Content="Игра против ИИ" Width="200" Click="StartVsAi_Click" Padding="10,5"/>
                 <Button Content="Игра с другом" Width="200" Click="StartLocalFriend_Click" Padding="10,5"/>
                 <Button Content="Создать онлайн игру" Width="200" Click="CreateNetworkGame_Click" Padding="10,5"/>
@@ -57,12 +46,9 @@
                 <Button Content="Выход" Width="200" Click="ExitApp_Click" Background="#753a03" Foreground="White" Margin="0,20,0,0" Padding="10,5"/>
             </StackPanel>
         </Grid>
-        <!-- === КОНЕЦ БЛОКА ГЛАВНОГО МЕНЮ === -->
 
-        <!-- ЭКРАН НАСТРОЙКИ СЕРВЕРА (ДЛЯ СОЗДАТЕЛЯ) -->
-        <!-- Появляется ПОСЛЕ выбора стороны создателем -->
+        <!-- Настройка сервера (Хост) -->
         <Grid x:Name="HostSetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <!-- ЗАМЕНИ host-bg.jpeg НА СВОЮ КАРТИНКУ -->
             <Image Source="avares://kchess/Graphics/Assets/host-bg.jpeg" 
                    Stretch="UniformToFill" 
                    HorizontalAlignment="Center" 
@@ -83,10 +69,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- ЭКРАН ПОДКЛЮЧЕНИЯ (ДЛЯ ИГРОКА) -->
-        <!-- Появляется сразу после нажатия "Присоединиться" -->
+        <!-- Подключение к серверу (Клиент) -->
         <Grid x:Name="JoinSetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <!-- ЗАМЕНИ join-bg.jpeg НА СВОЮ КАРТИНКУ -->
             <Image Source="avares://kchess/Graphics/Assets/join-bg.jpeg" 
                    Stretch="UniformToFill" 
                    HorizontalAlignment="Center" 
@@ -98,7 +82,6 @@
                 <TextBlock Text="Подключение к игре" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
                 <TextBlock Text="Введите IP адрес сервера" FontSize="16" Foreground="#CCC" HorizontalAlignment="Center" Margin="0,-10,0,20"/>
                 
-                <!-- Поле ввода IP -->
                 <TextBox x:Name="IpInputBox" 
                          Width="220" 
                          Text="127.0.0.1" 
@@ -117,7 +100,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- ЭКРАН ВЫБОРА СЛОЖНОСТИ (ИИ) -->
+        <!-- Выбор сложности (ИИ) -->
         <Grid x:Name="AiDifficultyPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Image Source="avares://kchess/Graphics/Assets/ai-difficulty-bg.jpeg" 
                    Stretch="UniformToFill" 
@@ -134,25 +117,13 @@
                 <Button Content="Сложный" Width="220" Click="SelectAiDifficulty_Click" Tag="Hard" Padding="10,8" FontSize="16"/>
                 
                 <StackPanel Orientation="Horizontal" Spacing="15" Margin="0,20,0,0" HorizontalAlignment="Center">
-                    <!-- Кнопка НАЗАД: возвращает к выбору стороны -->
-                    <Button Content="Назад" 
-                            Width="120" 
-                            Click="BackToSideSelection_Click" 
-                            Padding="8,5"
-                            Background="#555" Foreground="White" BorderBrush="#777"/>
-                    
-                    <!-- Кнопка В ГЛАВНОЕ МЕНЮ: выход полностью -->
-                    <Button Content="В главное меню" 
-                            Width="140" 
-                            Click="BackToMenu_Click" 
-                            Padding="8,5"
-                            Background="#444" Foreground="White" BorderBrush="#666"/>
+                    <Button Content="Назад" Width="120" Click="BackToSideSelection_Click" Padding="8,5" Background="#555" Foreground="White"/>
+                    <Button Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
 
-        <!-- ЭКРАН НАСТРОЙКИ (Выбор стороны) - ТЕПЕРЬ УНИВЕРСАЛЬНЫЙ -->
-        <!-- Мы будем использовать эту же панель и для игры с другом, и для игры с ИИ -->
+        <!-- Выбор стороны (Универсальный) -->
         <Grid x:Name="SetupPanel" IsVisible="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Image Source="avares://kchess/Graphics/Assets/color-selection-background.jpeg" 
                    Stretch="UniformToFill" 
@@ -167,7 +138,6 @@
                 <Button Content="Играть за Белых" Width="220" Click="ChooseSide_Click" Tag="White" Padding="10,8" FontSize="16"/>
                 <Button Content="Играть за Черных" Width="220" Click="ChooseSide_Click" Tag="Black" Padding="10,8" FontSize="16"/>
                 
-                <!-- Кнопка НАЗАД теперь ведет в ГЛАВНОЕ МЕНЮ -->
                 <Button Content="В главное меню" 
                         Width="160" 
                         Click="BackToMenu_Click" 
@@ -177,14 +147,11 @@
             </StackPanel>
         </Grid>
 
+        <!-- Игровое поле -->
         <Grid x:Name="GamePanel" IsVisible="False">
-            <!-- Сетка контента: Доска + Правая панель -->
             <Grid ColumnDefinitions="*,320" Margin="10">
                 <Border Grid.Column="0" Background="#333" CornerRadius="5" Padding="5">
-                    <!-- Viewbox автоматически масштабирует содержимое, сохраняя пропорции -->
                     <Viewbox Stretch="Uniform">
-                        <!-- Задаем фиксированный базовый размер, например 600x600. 
-                         Viewbox сожмет или растянет его под доступное место. -->
                         <Grid x:Name="ChessBoardGrid" 
                           Width="600" Height="600"
                           ColumnDefinitions="*,*,*,*,*,*,*,*" 
@@ -192,13 +159,10 @@
                     </Viewbox>
                 </Border>
 
-                <!-- ПРАВАЯ ЧАСТЬ: Панель управления -->
                 <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="10">
                 
-                    <!-- ОТСТУП СВЕРХУ, чтобы не наезжать на кнопку настроек -->
                     <Border Height="60" Background="Transparent"/> 
 
-                    <!-- Статус игры (теперь ниже) -->
                     <Border Background="#444" CornerRadius="5" Padding="15">
                         <TextBlock Text="{Binding StatusMessage}" 
                                FontSize="18" 
@@ -208,15 +172,12 @@
                                VerticalAlignment="Center"/>
                     </Border>
 
-                    <!-- Кнопки управления -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
                         <Button Content="Новая игра" Click="NewGame_Click" Padding="10,5"/>
                     </StackPanel>
 
-                    <!-- Заголовок истории -->
                     <TextBlock Text="История ходов" FontSize="16" FontWeight="Bold" Margin="0,10,0,5"/>
 
-                    <!-- Список ходов -->
                     <Border Background="#2a2a2a" CornerRadius="5" Padding="5" VerticalAlignment="Stretch">
                         <ListBox ItemsSource="{Binding MoveHistoryList}" 
                              Background="Transparent"
@@ -241,28 +202,21 @@
                 </StackPanel>
 
             </Grid>    
-            <!-- ЛЕВАЯ ЧАСТЬ: Доска (Теперь в Viewbox для сохранения пропорций) -->
-
         </Grid>
 
-        
-
-        <!-- КНОПКА НАСТРОЕК (Плавающая в правом верхнем углу) -->
-        <!-- Размещаем её поверх всего через отдельный Grid или просто выравниванием -->
+        <!-- Настройки (Шестеренка) -->
         <Grid HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20">
             
-            <!-- Кнопка шестеренки (теперь ToggleButton) -->
             <ToggleButton x:Name="SettingsButton" 
                           Width="40" Height="40"
                           Background="Transparent" BorderThickness="0"
                           ToolTip.Tip="Настройки"
-                          IsChecked="False"> <!-- По умолчанию выключена -->
+                          IsChecked="False">
                 
                 <Path Data="M19.14,12.94C19.16,12.78 19.16,12.61 19.16,12.44C19.16,12.27 19.16,12.11 19.14,11.94L21.41,10.16C21.62,10 21.69,9.69 21.53,9.48L19.38,5.76C19.22,5.55 18.91,5.48 18.7,5.64L16.03,6.71C15.5,6.3 14.92,5.95 14.3,5.68L13.9,2.81C13.87,2.58 13.67,2.41 13.44,2.41H9.12C8.89,2.41 8.69,2.58 8.66,2.81L8.26,5.68C7.64,5.95 7.06,6.3 6.53,6.71L3.86,5.64C3.65,5.48 3.34,5.55 3.18,5.76L1.03,9.48C0.87,9.69 0.94,10 1.15,10.16L3.42,11.94C3.4,12.11 3.4,12.27 3.4,12.44C3.4,12.61 3.4,12.78 3.42,12.94L1.15,14.72C0.94,14.88 0.87,15.19 1.03,15.4L3.18,19.12C3.34,19.33 3.65,19.4 3.86,19.24L6.53,18.17C7.06,18.58 7.64,18.93 8.26,19.2L8.66,22.07C8.69,22.3 8.89,22.47 9.12,22.47H13.44C13.67,22.47 13.87,22.3 13.9,22.07L14.3,19.2C14.92,18.93 15.5,18.58 16.03,18.17L18.7,19.24C18.91,19.4 19.22,19.33 19.38,19.12L21.53,15.4C21.69,15.19 21.62,14.88 21.41,14.72L19.14,12.94M11.28,15.28A2.84,2.84 0 1,1 14.12,12.44A2.84,2.84 0 0,1 11.28,15.28Z"
                       Fill="#CCCCCC" Stretch="Uniform" Width="24" Height="24"/>
             </ToggleButton>
 
-            <!-- Всплывающее меню (Popup) -->
             <Popup x:Name="SettingsPopup" 
                    PlacementTarget="{Binding #SettingsButton}" 
                    Placement="Bottom" 
@@ -277,7 +231,6 @@
                     <StackPanel Width="220" Spacing="15">
                         <TextBlock Text="Настройки" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
                         
-                        <!-- Пример кнопок (пока заглушки) -->
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="🎨" FontSize="16"/>
                             <TextBlock Text="Themes" Foreground="White"/>
@@ -313,7 +266,6 @@
                         </StackPanel>
                         <ToggleButton HorizontalAlignment="Left" Margin="20,0,0,0" IsChecked="True" Content="On"/>
 
-                        <!-- === НОВАЯ КНОПКА ВЫБОРА ЦВЕТА РАМКИ === -->
                         <Border Height="1" Background="#444" Margin="0,5"/>
                         
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -326,7 +278,6 @@
                                 Click="OpenHighlightColorPicker_Click"
                                 Background="#383838" Foreground="White" 
                                 BorderBrush="#555" Padding="8" Margin="20,0,0,0"/>
-                        <!-- ========================================== -->
 
                     </StackPanel>
                 </Border>

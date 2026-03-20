@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using kchess; // Подключаем корневой namespace, чтобы видеть MainViewModel
+using kchess;
 
 namespace kchess.Graphics
 {

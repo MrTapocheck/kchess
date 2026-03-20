@@ -281,8 +281,6 @@ namespace kchess.Graphics
         {
             _isVsAi = true;
             _selectedDifficulty = null; 
-            
-            // Сразу идем на выбор стороны
             ShowSideSelection("Режим: Против ИИ\nВыберите сторону");
         }
 
@@ -296,12 +294,11 @@ namespace kchess.Graphics
 
         private void ShowNetworkMenu_Click(object? sender, RoutedEventArgs e)
         {
-            // Пока заглушка
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Онлайн режим в разработке...");
         }
         
-        // Метод открытия  универсального диалога
+        // пипетка
         private void OpenHighlightColorPicker_Click(object? sender, RoutedEventArgs e)
         {
             if (SettingsPopup != null) SettingsPopup.IsOpen = false;
@@ -344,64 +341,6 @@ namespace kchess.Graphics
             }
         }        
 
-        private void InitializeSettingsLogic()
-        {
-            _settingsBtn = this.FindControl<Button>("SettingsButton");
-            _settingsPopup = this.FindControl<Popup>("SettingsPopup");
-
-            if (_settingsBtn != null && _settingsPopup != null)
-            {
-                // Логика открытия (по событию - это быстро)
-                _settingsBtn.PointerEntered += (s, e) => OpenMenu();
-                _settingsPopup.PointerEntered += (s, e) => OpenMenu();
-
-                // Запускаем фоновый таймер, который проверяет состояние мыши каждые 100мс
-                _hoverTimer = new Timer(CheckHoverState, null, 100, 100);
-            }
-        }
-
-        private void OpenMenu()
-        {
-            if (_settingsPopup != null)
-                _settingsPopup.IsOpen = true;
-        }
-
-        private void CheckHoverState(object? state)
-        {
-            // Выполняем проверку в UI потоке
-            Dispatcher.UIThread.Post(() => 
-            {
-                if (_settingsPopup == null || _settingsBtn == null) return;
-
-                // 1. Если главное окно свернуто или не активно (опционально, но полезно)
-                // if (!this.IsActive) { _settingsPopup.IsOpen = false; return; } 
-                // ^ Закомментировал, так как IsActive может глючить при наведении, 
-                // но если хочешь закрытие при сворачивании окна - раскомментируй.
-                
-                // Проверка на сворачивание окна (WindowState)
-                if (this.WindowState == WindowState.Minimized)
-                {
-                    _settingsPopup.IsOpen = false;
-                    return;
-                }
-
-                // 2. ГЛАВНАЯ ПРОВЕРКА:
-                // Если меню открыто, проверяем, находится ли мышь НАД кнопкой ИЛИ НАД меню.
-                if (_settingsPopup.IsOpen)
-                {
-                    bool isOverButton = _settingsBtn.IsPointerOver;
-                    bool isOverPopup = _settingsPopup.IsPointerOver;
-
-                    // Если мыши нет нигде -> ЗАКРЫВАЕМ
-                    if (!isOverButton && !isOverPopup)
-                    {
-                        _settingsPopup.IsOpen = false;
-                    }
-                }
-            });
-        }
-
-        // Добавляем параметр isWhitePerspective
         private void BuildChessBoard(bool isWhitePerspective = true)
         {
             var grid = this.FindControl<Grid>("ChessBoardGrid");
@@ -412,12 +351,10 @@ namespace kchess.Graphics
             _images.Clear();
 
             const int BoardSize = 8;
-            var DarkCoordColor = Color.Parse("#F0D9B5"); 
-            var LightCoordColor = Color.Parse("#769656"); 
-            
+            var DarkCoordColor = Color.Parse("#F0D9B5");
+            var LightCoordColor = Color.Parse("#769656");
             string[] files = { "a", "b", "c", "d", "e", "f", "g", "h" };
 
-            // ... (очистка Column/Row Definitions остается той же) ...
             grid.ColumnDefinitions.Clear();
             grid.RowDefinitions.Clear();
             for (int i = 0; i < BoardSize; i++)
@@ -430,29 +367,20 @@ namespace kchess.Graphics
             {
                 for (int x = 0; x < BoardSize; x++)
                 {
-                    // === ЛОГИКА ПЕРЕВОРОТА ===
-                    // Если играем за белых: x=0..7, y=0..7 (стандарт)
-                    // Если за черных: нам нужно инвертировать координаты отрисовки
-                    int boardX = isWhitePerspective ? x : (BoardSize - 1 - x);
-                    int boardY = isWhitePerspective ? y : (BoardSize - 1 - y);
-                    
-                    // Но логика шахматного движка всегда работает от 0 до 7 относительно массива Board[8,8]
-                    // Где Board[0,0] - это a8 (черные), Board[7,7] - h1 (белые).
-                    // Нам нужно мапить визуальные координаты (x,y в цикле) на логические (logicX, logicY).
-                    
+                    // Маппинг визуальных координат (x,y) на логические (logicX, logicY)
                     int logicX = isWhitePerspective ? x : (BoardSize - 1 - x);
                     int logicY = isWhitePerspective ? y : (BoardSize - 1 - y);
 
                     var cellBorder = new Border
                     {
-                        [Grid.ColumnProperty] = x, // Визуальная позиция в Grid
+                        [Grid.ColumnProperty] = x,
                         [Grid.RowProperty] = y,
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch,
-                        Tag = $"{logicX},{logicY}" // Сохраняем ЛОГИЧЕСКИЕ координаты для кликов!
+                        Tag = $"{logicX},{logicY}"
                     };
 
-                    bool isDark = (logicX + logicY) % 2 == 1; // Цвет клетки зависит от логики
+                    bool isDark = (logicX + logicY) % 2 == 1;
                     var cellColor = isDark ? Color.Parse("#769656") : Color.Parse("#F0D9B5");
                     cellBorder.Background = new SolidColorBrush(cellColor);
 
@@ -462,58 +390,47 @@ namespace kchess.Graphics
                     var coordColor = isDark ? DarkCoordColor : LightCoordColor;
                     var brush = new SolidColorBrush(coordColor);
 
-                    // === ОТРИСОВКА КООРДИНАТ ===
-                    // Буквы: должны быть снизу относительно игрока.
-                    // Если белые: снизу это y=7. Если черные: снизу это y=7 (визуально), но логически это 0-я горизонталь.
-                    // Проще: рисуем буквы на последнем визуальном ряду (y == 7) и цифры на последнем визуальном столбце (x == 7).
-                    
-                    if (y == BoardSize - 1) 
+                    // Координаты: буквы снизу, цифры справа (относительно игрока)
+                    if (y == BoardSize - 1)
                     {
-                        // Какую букву писать?
-                        // Если белые: x=0 -> 'a'. Если черные: x=0 (визуально h1) -> 'h'.
-                        char fileChar = isWhitePerspective ? files[logicX][0] : files[logicX][0]; 
-                        // Стоп, logicX уже инвертирован. 
-                        // Если x=0 (слева визуально для черных), то logicX=7 ('h'). Значит files[7] = 'h'. Всё верно!
-                        
-                        var fileLabel = new TextBlock
+                        contentGrid.Children.Add(new TextBlock
                         {
-                            Text = files[logicX].ToString(), // Используем logicX для выбора буквы
+                            Text = files[logicX],
                             FontSize = 12, FontWeight = FontWeight.Bold, Foreground = brush,
-                            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
-                            Margin = new Thickness(2, 0, 0, 2), IsHitTestVisible = false
-                        };
-                        contentGrid.Children.Add(fileLabel);
+                            HorizontalAlignment = HorizontalAlignment.Left,
+                            VerticalAlignment = VerticalAlignment.Bottom,
+                            Margin = new Thickness(2, 0, 0, 2),
+                            IsHitTestVisible = false
+                        });
                     }
 
                     if (x == BoardSize - 1)
                     {
-                        // Какую цифру писать?
-                        // Если белые: y=0 -> 8. Если черные: y=0 (визуально верх) -> 1.
-                        // logicY уже инвертирован. Rank = 8 - logicY.
-                        int rankNumber = BoardSize - logicY;
-                        
-                        var rankLabel = new TextBlock
+                        contentGrid.Children.Add(new TextBlock
                         {
-                            Text = rankNumber.ToString(),
+                            Text = (BoardSize - logicY).ToString(),
                             FontSize = 12, FontWeight = FontWeight.Bold, Foreground = brush,
-                            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
-                            Margin = new Thickness(0, 2, 2, 0), IsHitTestVisible = false
-                        };
-                        contentGrid.Children.Add(rankLabel);
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            VerticalAlignment = VerticalAlignment.Top,
+                            Margin = new Thickness(0, 2, 2, 0),
+                            IsHitTestVisible = false
+                        });
                     }
-                    
+
                     var pieceImage = new Image
                     {
-                        Name = $"PieceImage_{x}_{y}", // Имя зависит от визуальных координат, чтобы находить в UpdateVisuals
-                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                        Stretch = Stretch.Uniform, IsHitTestVisible = false
+                        Name = $"PieceImage_{x}_{y}",
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Stretch = Stretch.Uniform,
+                        IsHitTestVisible = false
                     };
                     contentGrid.Children.Add(pieceImage);
 
                     cellBorder.PointerReleased += (s, e) =>
                     {
                         if (e.InitialPressMouseButton == MouseButton.Left)
-                            OnCellClicked(logicX, logicY); // Передаем ЛОГИЧЕСКИЕ координаты в движок!
+                            OnCellClicked(logicX, logicY);
                     };
                     cellBorder.Cursor = new Cursor(StandardCursorType.Hand);
 
@@ -540,36 +457,32 @@ namespace kchess.Graphics
                 int y = int.Parse(tag[1]);
                 var piece = vm.Board[y, x];
 
-                // Находим Grid внутри клетки
                 if (cell.Child is not Grid gridContainer) continue;
 
-                // --- 1. УПРАВЛЕНИЕ КОНТУРОМ (Желтая рамка) ---
-                Border? selectionBorder = gridContainer.Children.FirstOrDefault(c => c is Border b && b.Name == "SelectionBorder") as Border;
-                
+                // 1. Контур выделения
+                var selectionBorder = gridContainer.Children
+                    .FirstOrDefault(c => c is Border b && b.Name == "SelectionBorder") as Border;
+
                 if (selectionBorder == null)
                 {
-                    // Создаем, если нет
                     selectionBorder = new Border
                     {
                         Name = "SelectionBorder",
                         BorderThickness = new Thickness(4),
-                        BorderBrush = new SolidColorBrush(HighlightColor), // переменная цвета
-                        IsHitTestVisible = false, // Чтобы не мешал кликам
+                        BorderBrush = new SolidColorBrush(HighlightColor),
+                        IsHitTestVisible = false,
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch
                     };
-                    // Вставляем самым первым (поверх фона клетки, но под фигурами)
                     gridContainer.Children.Insert(0, selectionBorder);
                 }
 
-                // Показываем только если эта клетка выбрана
                 selectionBorder.IsVisible = (_selectedX == x && _selectedY == y);
 
-
-                // --- 2. УПРАВЛЕНИЕ ПРИЗРАКОМ (Полупрозрачная фигура) ---
-                Image? ghostImage = gridContainer.Children.FirstOrDefault(c => c is Image i && i.Name.StartsWith("Ghost")) as Image;
-
+                // 2. Призрак хода
                 bool isPossibleMove = _possibleMoves.Any(m => m.x == x && m.y == y);
+                var ghostImage = gridContainer.Children
+                    .FirstOrDefault(c => c is Image i && i.Name.StartsWith("Ghost")) as Image;
 
                 if (isPossibleMove)
                 {
@@ -590,36 +503,30 @@ namespace kchess.Graphics
                     var selectedPiece = vm.Board[_selectedY!.Value, _selectedX!.Value];
                     if (selectedPiece != null)
                     {
-                        // ! значит точно не ноль
                         LoadPieceImage(ghostImage!, selectedPiece);
-                        ghostImage!.IsVisible = true;
-                        
-                        if (piece != null && piece.Color == selectedPiece.Color)
-                        {
-                            ghostImage!.IsVisible = false;
-                        }
+                        // Скрываем призрака, если на клетке стоит своя фигура (атака)
+                        ghostImage!.IsVisible = (piece == null || piece.Color != selectedPiece.Color);
                     }
                     else
                     {
                         ghostImage!.IsVisible = false;
                     }
                 }
-                else
+                else if (ghostImage != null)
                 {
-                    if (ghostImage != null) ghostImage.IsVisible = false;
+                    ghostImage.IsVisible = false;
                 }
-                // --- 3. УПРАВЛЕНИЕ РЕАЛЬНОЙ ФИГУРОЙ ---
-                Image? realImage = gridContainer.Children.FirstOrDefault(c => c is Image i && i.Name.StartsWith("PieceImage_")) as Image;
-                
+
+                // 3. Реальная фигура
+                var realImage = gridContainer.Children
+                    .FirstOrDefault(c => c is Image i && i.Name.StartsWith("PieceImage_")) as Image;
+
                 if (realImage != null)
                 {
                     if (piece != null)
                     {
                         LoadPieceImage(realImage, piece);
                         realImage.IsVisible = true;
-                        
-                        // Опционально: можно скрывать реальную фигуру, если на ней стоит призрак (для красоты), 
-                        // но лучше оставить как есть.
                     }
                     else
                     {
@@ -658,47 +565,34 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // 1. Если уже есть выбор и мы кликнули на возможный ход
+            // Если фигура уже выбрана
             if (_selectedX.HasValue && _selectedY.HasValue)
             {
                 bool isMoveValid = _possibleMoves.Any(m => m.x == x && m.y == y);
 
                 if (isMoveValid)
                 {
-                    // === ПРОВЕРКА НА ПРЕВРАЩЕНИЕ ПЕРЕД ХОДОМ ===
                     var movingPiece = vm.Board[_selectedY.Value, _selectedX.Value];
-                    bool isPromotion = false;
-
-                    if (movingPiece != null && movingPiece.Type == PieceType.Pawn)
-                    {
-                        // Белая пешка дошла до 0-й горизонтали?
-                        if (movingPiece.Color == PieceColor.White && y == 0) isPromotion = true;
-                        // Черная пешка дошла до 7-й горизонтали?
-                        if (movingPiece.Color == PieceColor.Black && y == 7) isPromotion = true;
-                    }
-
-                    if (isPromotion)
-                    {
-                        // ЕСЛИ ПРЕВРАЩЕНИЕ: Открываем меню выбора и ЖДЕМ. Ход НЕ делаем!
-                        ShowPromotionSelection(_selectedX.Value, _selectedY.Value, x, y);
-                        return; // Важно: выходим из метода, не делая ход!
-                    }
-                    // ===========================================
-
-                    // ЕСЛИ ОБЫЧНЫЙ ХОД: Делаем сразу
-                    vm.TryMakeMove(_selectedX.Value, _selectedY.Value, x, y);
                     
+                    // Проверка на превращение пешки
+                    if (movingPiece?.Type == PieceType.Pawn && (y == 0 || y == 7))
+                    {
+                        ShowPromotionSelection(_selectedX.Value, _selectedY.Value, x, y);
+                        return;
+                    }
+
+                    // Обычный ход
+                    vm.TryMakeMove(_selectedX.Value, _selectedY.Value, x, y);
                     ClearSelection();
                     UpdateBoardVisuals();
                     return;
                 }
 
-                // Если кликнули не на ход, а на другую свою фигуру -> МЕНЯЕМ ВЫБОР
+                // Клик на другую свою фигуру -> перевыбор
                 var piece = vm.Board[y, x];
-                bool isMyTurn = vm.CurrentTurnText.Contains("белых"); 
-                PieceColor myColor = isMyTurn ? PieceColor.White : PieceColor.Black;
+                var currentTurnColor = vm.CurrentTurnText.Contains("белых") ? PieceColor.White : PieceColor.Black;
 
-                if (piece != null && piece.Color == myColor)
+                if (piece != null && piece.Color == currentTurnColor)
                 {
                     _selectedX = x;
                     _selectedY = y;
@@ -707,18 +601,17 @@ namespace kchess.Graphics
                     return;
                 }
 
-                // Кликнули в пустоту или на врага (но это не ход) -> СБРОС
+                // Клик в пустоту или врага (не ход) -> сброс
                 ClearSelection();
                 UpdateBoardVisuals();
                 return;
             }
 
-            // 2. Если ничего не выбрано -> ПЫТАЕМСЯ ВЫБРАТЬ
+            // Если ничего не выбрано -> попытка выбора
             var currentPiece = vm.Board[y, x];
-            bool isCurrentMyTurn = vm.CurrentTurnText.Contains("белых");
-            PieceColor currentMyColor = isCurrentMyTurn ? PieceColor.White : PieceColor.Black;
+            var turnColor = vm.CurrentTurnText.Contains("белых") ? PieceColor.White : PieceColor.Black;
 
-            if (currentPiece != null && currentPiece.Color == currentMyColor)
+            if (currentPiece != null && currentPiece.Color == turnColor)
             {
                 _selectedX = x;
                 _selectedY = y;
@@ -799,7 +692,7 @@ namespace kchess.Graphics
             var pieces = new[] { PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight };
             var names = new[] { "Ферзь", "Ладья", "Слон", "Конь" };
             
-            // Цвет нашей пешки
+            // Цвет пешки
             var pawnColor = vm.Board[fromY, fromX]?.Color ?? PieceColor.White;
 
             for (int i = 0; i < 4; i++)

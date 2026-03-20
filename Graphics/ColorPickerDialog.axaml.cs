@@ -22,8 +22,6 @@ namespace kchess.Graphics
         public void SetInitialColor(Color color)
         {
             HexInput.Text = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-            // Примечание: слайдеры не синхронизируются обратно без сложной математики RGB->HSL,
-            // но превью и HEX обновятся корректно при движении слайдеров.
         }
 
         private void UpdateColorFromSliders()
@@ -47,12 +45,12 @@ namespace kchess.Graphics
             {
                 ColorSelected?.Invoke(this, color);
             }
-            ForceClose(); // Закрываем ВСЕГДА при нажатии кнопки
+            ForceClose(); // Закрываем всегда при нажатии кнопки
         }
 
         private void CancelClick(object? sender, RoutedEventArgs e)
         {
-            ForceClose(); // Закрываем ВСЕГДА при отмене
+            ForceClose(); // Закрываем всегда при отмене
         }
 
         // Универсальный метод уничтожения диалога
