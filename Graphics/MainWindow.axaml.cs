@@ -24,9 +24,9 @@ namespace kchess.Graphics
     {
         private AppSettings _settings; 
 
-        // Переменные состояния для игры с ботом
+        //флаги
         private bool _isVsAi = false; // true если игра против ИИ
-        private bool _isNetworkHost = false; // True если создаем сервер
+        private bool _isNetworkHost = false; // True если создаётся сервер
         private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
         private PieceColor _playerColorForAi = PieceColor.White;
 
@@ -117,7 +117,7 @@ namespace kchess.Graphics
             */
         }       
 
-        // МЕНЮ ВЫБОРА СТОРОНЫ (УНИВЕРСАЛЬНОЕ)
+        // МЕНЮ ВЫБОРА СТОРОНЫ
         private void ShowSideSelection(string title)
         {
             SetupTitleText.Text = title;
@@ -137,17 +137,15 @@ namespace kchess.Graphics
 
                 if (_isNetworkHost)
                 {
-                    // Хост выбрал сторону -> идем на экран настройки сервера
                     ShowHostSetupPanel();
                 }
                 else if (_isVsAi)
                 {
-                    // ИИ -> идем на сложность
                     ShowAiDifficultySelection();
                 }
                 else
                 {
-                    // Локальная игра -> старт
+                    // Запускаем игру
                     StartGame(isVsAi: false, playerIsWhite: playAsWhite);
                 }
             }
@@ -170,6 +168,9 @@ namespace kchess.Graphics
 
             // Сброс игры
             vm.NewGame();
+
+            // строим доску с нужной перспективой
+            BuildChessBoard(playerIsWhite);            
             vm.SetStatus($"Игра началась! Режим: {(isVsAi ? "ИИ" : "Друг")}");
 
             // Жесткое переключение видимости
@@ -185,10 +186,10 @@ namespace kchess.Graphics
                 return;
             }
 
-            // Принудительная перерисовка
+            // расставляем фигуры
             UpdateBoardVisuals();
             
-            // Фокус на окно (иногда помогает)
+            // Фокус на окно чтобы не потерялось
             this.Activate();
         }
         
@@ -237,7 +238,7 @@ namespace kchess.Graphics
             SetupPanel.IsVisible = true;
         }    
 
-        // ЗАГЛУШКИ
+        // заглушки на функции оставленные на будущее
         // Когда хост нажал "Создать сервер"
         private void StartHostServer_Click(object? sender, RoutedEventArgs e)
         {
@@ -632,7 +633,7 @@ namespace kchess.Graphics
             if (vm != null) { vm.NewGame(); UpdateBoardVisuals(); }
         }
 
-                private void ShowPromotionSelection(int fromX, int fromY, int toX, int toY)
+        private void ShowPromotionSelection(int fromX, int fromY, int toX, int toY)
         {
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
