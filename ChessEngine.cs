@@ -552,11 +552,11 @@ namespace kchess
                 moveNotation += " e.p.";
 
             // обработка превращения
-            if (isPromotionNeeded)
+            if (isPromotionNeeded && movingPiece != null)
             {
                 Board[toY, toX] = CreatePiece(movingPiece.Color, promotionType);
                 
-                // Обновляем нотацию хода (добавляем букву фигуры, например e7-e8=Q)
+                // Обновляем нотацию хода
                 string pieceCode = promotionType switch
                 {
                     PieceType.Queen => "Q",
