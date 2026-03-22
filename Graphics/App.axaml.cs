@@ -18,10 +18,8 @@ namespace kchess.Graphics
             {
                 var mainWindow = new MainWindow();
                 
-                // Создаем общую ViewModel
                 var viewModel = new MainViewModel();
                 
-                // Передаем её в окно
                 mainWindow.DataContext = viewModel;
                 
                 desktop.MainWindow = mainWindow;
