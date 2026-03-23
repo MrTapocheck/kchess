@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Generic; // <--- Добавлено
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using kchess;
 
 namespace kchess.Services
 {

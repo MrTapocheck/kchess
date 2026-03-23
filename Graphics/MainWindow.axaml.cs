@@ -201,7 +201,11 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // Просто рисуем доску и показываем панель игры
+            // Сбрасываем движок, расставляем фигуры в памяти
+            vm.NewGame(); 
+            // ==========================
+
+            // Теперь рисуем доску (клетки уже будут знать, куда смотреть)
             BuildChessBoard(playerIsWhite);            
             UpdateBoardVisuals();
             
@@ -209,6 +213,9 @@ namespace kchess.Graphics
             AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = true;
+            
+            // Обновляем статус (опционально)
+            vm.SetStatus($"Игра началась! Вы играете за {(playerIsWhite ? "белых" : "черных")}");
             
             this.Activate();
         }

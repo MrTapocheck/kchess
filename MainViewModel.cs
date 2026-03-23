@@ -168,8 +168,7 @@ namespace kchess
 
         public void MakeAiMove()
         {
-            Console.WriteLine(">>> [MakeAiMove] ЗАПУСК! Генерация ходов...");
-            
+            // 1. Сначала проверяем всё в главном потоке
             if (_ai == null || _evaluator == null) 
             {
                 Console.WriteLine(">>> [MakeAiMove] ОШИБКА: _ai или _evaluator = NULL");
@@ -181,59 +180,120 @@ namespace kchess
                 return; 
             }
 
-            SetStatus("🤖 ИИ думает...");
-            SetStatus("🤖 ИИ думает...");
+            // 2. Устанавливаем статус СРАЗУ, пока мы в главном потоке (или вызове из TryMakeMove)
+            // Но постой, TryMakeMove уже ушел. 
+            // Давайте установим статус ПЕРЕД запуском Task.Run в TryMakeMove!
+            
+            // А здесь, внутри этого метода, который теперь будет вызываться ТОЛЬКО из Task.Run:
+            // Мы НЕ должны трогать UI напрямую.
+            
+            Console.WriteLine(">>> [MakeAiMove] (Фон) Начало расчета...");
 
-            var candidates = new List<(int fromX, int fromY, int toX, int toY)>();
-
-            for (int y = 0; y < 8; y++)
+            try 
             {
-                for (int x = 0; x < 8; x++)
+                var candidates = new List<(int fromX, int fromY, int toX, int toY)>();
+
+                // Генерация ходов (работает только с движком, безопасно)
+                for (int y = 0; y < 8; y++)
                 {
-                    var moves = GetLegalMoves(x, y);
-                    foreach (var move in moves)
+                    for (int x = 0; x < 8; x++)
                     {
-                        candidates.Add((x, y, move.x, move.y));
+                        var piece = _engine.Board[y, x];
+                        if (piece != null && piece.Color == _engine.CurrentTurn)
+                        {
+                            var moves = GetLegalMoves(x, y);
+                            foreach (var move in moves)
+                                candidates.Add((x, y, move.x, move.y));
+                        }
                     }
                 }
+
+                if (candidates.Count == 0) 
+                {
+                    Console.WriteLine("[MakeAiMove] Ходов нет!");
+                    // Нельзя вызвать SetStatus отсюда напрямую!
+                    return; 
+                }
+
+                Console.WriteLine($"[MakeAiMove] Кандидатов: {candidates.Count}. Запуск AI...");
+                
+                // САМОЕ ВАЖНОЕ: Вызов AI
+                var bestMove = _ai.GetBestMove(_engine);
+
+                if (bestMove.HasValue)
+                {
+                    Console.WriteLine($"[MakeAiMove] Ход найден: {bestMove.Value}");
+                    
+                    // 3. Возвращаемся в UI поток для выполнения хода и обновления статуса
+                    // В Avalonia используем Dispatcher.UIThread.Post
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        Console.WriteLine("[MakeAiMove] Возврат в UI поток. Делаем ход.");
+                        TryMakeMove(bestMove.Value.fromX, bestMove.Value.fromY, bestMove.Value.toX, bestMove.Value.toY);
+                    });
+                }
+                else
+                {
+                    Console.WriteLine("[MakeAiMove] Ход не найден.");
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        SetStatus("ИИ сдался или ошибка расчета!");
+                    });
+                }
             }
-
-            if (candidates.Count == 0) return;
-
-            // Запуск расчета (можно обернуть в Task.Run если будет фризить UI)
-            var best = _ai.GetBestMove(_engine, candidates);
-
-            if (best.HasValue)
+            catch (Exception ex)
             {
-                TryMakeMove(best.Value.fromX, best.Value.fromY, best.Value.toX, best.Value.toY);
+                Console.WriteLine($"[MakeAiMove] КРИТИЧЕСКАЯ ОШИБКА: {ex}");
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    SetStatus("Ошибка ИИ: " + ex.Message);
+                });
             }
         }
 
         // --- Обработка ходов ---
 
-        public void TryMakeMove(int fromX, int fromY, int toX, int toY, PieceType promotionType = PieceType.Queen)
+        public bool TryMakeMove(int fromX, int fromY, int toX, int toY, PieceType promotionType = PieceType.Queen)
         {
-            try
-            {
-                bool success = _engine.TryMove(fromX, fromY, toX, toY, promotionType);
-                
-                if (success)
-                {
-                    OnPropertyChanged(nameof(Board));
-                    UpdateMoveHistory();
-                    RefreshProperties();
+            Console.WriteLine($"[VM] Попытка хода: {fromX},{fromY} -> {toX},{toY}");
+            
+            var result = _engine.TryMakeMove(fromX, fromY, toX, toY, promotionType);
 
-                    HandlePostMoveLogic();
+            if (result.Success)
+            {
+                Console.WriteLine($"[VM] Ход успешен! Статус: {result.Status}");
+                Console.WriteLine($"[VM] Текущий ход в движке: {_engine.CurrentTurn}");
+                Console.WriteLine($"[VM] Режим игры: {CurrentMode}");
+                Console.WriteLine($"[VM] Игра окончена? {_engine.IsGameOver}");
+
+                UpdateMoveHistory();
+                RefreshProperties();
+
+                // === ПРОВЕРКА ЗАПУСКА ИИ ===
+                if (CurrentMode == GameMode.PvAI && !_engine.IsGameOver)
+                {
+                    if (_engine.CurrentTurn == PieceColor.Black)
+                    {
+                        // Устанавливаем статус ДО запуска потока!
+                        SetStatus("🤖 ИИ думает..."); 
+                        
+                        Console.WriteLine(">>> [VM] ЗАПУСК MakeAiMove() через Task.Run!");
+                        System.Threading.Tasks.Task.Run(() => MakeAiMove());
+                    }
                 }
                 else
                 {
-                    OnPropertyChanged(nameof(StatusMessage));
+                    if (CurrentMode != GameMode.PvAI) Console.WriteLine("[VM] Не режим PvAI.");
+                    if (_engine.IsGameOver) Console.WriteLine("[VM] Игра окончена.");
                 }
+                
+                return true;
             }
-            catch (Exception ex)
+            else
             {
-                SetStatus($"Ошибка: {ex.Message}");
-                OnPropertyChanged(nameof(StatusMessage));
+                Console.WriteLine($"[VM] Ход НЕ успешен: {result.Status}");
+                RefreshProperties();
+                return false;
             }
         }
 
