@@ -8,47 +8,38 @@ namespace kchess
     public class ChessAI
     {
         private readonly NeuralEvaluator _evaluator;
-        private const int DEPTH = 4; // Глубина поиска: 2 полухода (мой ход + ответ врага)
+        private const int DEPTH = 3;
 
         public ChessAI(NeuralEvaluator evaluator)
         {
             _evaluator = evaluator;
         }
 
-        public (int fromX, int fromY, int toX, int toY)? GetBestMove(
-            ChessEngine engine,
-            List<(int fromX, int fromY, int toX, int toY)> candidates)
+        public (int fromX, int fromY, int toX, int toY)? GetBestMove(ChessEngine engine)
         {
-            if (candidates.Count == 0 || _evaluator == null)
-                return null;
+            if (engine.IsGameOver || _evaluator == null) return null;
 
-            var bestMove = candidates[0];
-            // Используем очень маленькое число для старта
+            var moves = GenerateAllLegalMovesFast(engine);
+            if (moves.Count == 0) return null;
+
+            var rng = new Random();
+            moves = moves.OrderBy(m => rng.Next()).ToList();
+
             float bestScore = float.MinValue;
+            var bestMove = moves[0];
             float alpha = float.MinValue;
             float beta = float.MaxValue;
 
-            // Определяем, за кого играет бот сейчас (чтобы знать знак оценки)
-            bool isWhiteTurn = engine.Board[candidates[0].fromY, candidates[0].fromX].Color == PieceColor.White;
-
-            foreach (var move in candidates)
+            foreach (var move in moves)
             {
-                // 1. Делаем ход
-                var piece = engine.Board[move.fromY, move.fromX];
-                var captured = engine.Board[move.toY, move.toX];
+                var result = engine.TryMakeMove(move.fromX, move.fromY, move.toX, move.toY);
                 
-                engine.Board[move.toY, move.toX] = piece;
-                engine.Board[move.fromY, move.fromX] = null;
+                if (!result.Success) continue;
 
-                // 2. Запускаем рекурсивный поиск (Minimax)
-                // После нашего хода ходит противник, поэтому ищем МИНИМУМ для нас
-                float score = -Minimax(engine, DEPTH - 1, alpha, beta, !isWhiteTurn);
+                float score = -Minimax(engine, DEPTH - 1, -beta, -alpha);
 
-                // 3. Откатываем ход
-                engine.Board[move.fromY, move.fromX] = piece;
-                engine.Board[move.toY, move.toX] = captured;
+                engine.UndoMove();
 
-                // 4. Alpha-Beta логика
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -56,125 +47,73 @@ namespace kchess
                 }
 
                 alpha = Math.Max(alpha, score);
-                if (beta <= alpha)
-                {
-                    break; // Отсечение ветки
-                }
+                if (beta <= alpha) break;
             }
 
             return bestMove;
         }
 
-        // Рекурсивная функция Minimax
-        private float Minimax(ChessEngine engine, int depth, float alpha, float beta, bool isMaximizingPlayer)
+        private float Minimax(ChessEngine engine, int depth, float alpha, float beta)
         {
-            // Базовый случай: достигли нужной глубины или конец игры
             if (depth == 0 || engine.IsGameOver)
             {
                 float score = _evaluator.Evaluate(engine.Board);
-                // Возвращаем оценку с точки зрения того, кто делал ход в корне дерева
-                // Но так как мы инвертируем знак на каждом уровне, просто возвращаем score
                 return score;
             }
 
-            // Генерируем все легальные ходы для текущей позиции
-            // ВНИМАНИЕ: Здесь нам нужен быстрый способ получить ходы. 
-            // Так как у нас нет доступа к ViewModel здесь, придется перебирать доску вручную (как в старом коде).
             var moves = GenerateAllLegalMovesFast(engine);
+            if (moves.Count == 0) return 0;
 
-            if (moves.Count == 0) return 0; // Пат или мат
-
-            float bestScore = isMaximizingPlayer ? float.MinValue : float.MaxValue;
+            float maxScore = float.MinValue;
 
             foreach (var move in moves)
             {
-                var piece = engine.Board[move.fromY, move.fromX];
-                var captured = engine.Board[move.toY, move.toX];
+                var result = engine.TryMakeMove(move.fromX, move.fromY, move.toX, move.toY);
+                if (!result.Success) continue;
 
-                // Делаем ход
-                engine.Board[move.toY, move.toX] = piece;
-                engine.Board[move.fromY, move.fromX] = null;
+                float score = -Minimax(engine, depth - 1, -beta, -alpha);
+                engine.UndoMove();
 
-                float score;
-                if (isMaximizingPlayer)
+                if (score > maxScore)
                 {
-                    // Ход "нашего" игрока (в контексте этой ветки) - хотим максимизировать
-                    // Но следующая функция вернет оценку с инверсией, поэтому...
-                    // Упрощенная схема Negamax: всегда ищем максимум от инвертированного результата детей
-                    score = -Minimax(engine, depth - 1, -beta, -alpha, false);
-                }
-                else
-                {
-                    score = -Minimax(engine, depth - 1, -beta, -alpha, true);
+                    maxScore = score;
                 }
 
-                // Откат
-                engine.Board[move.fromY, move.fromX] = piece;
-                engine.Board[move.toY, move.toX] = captured;
-
-                if (isMaximizingPlayer)
-                {
-                    if (score > bestScore) bestScore = score;
-                    alpha = Math.Max(alpha, score);
-                }
-                else
-                {
-                    if (score < bestScore) bestScore = score;
-                    beta = Math.Min(beta, score);
-                }
-
+                alpha = Math.Max(alpha, score);
                 if (beta <= alpha) break;
             }
 
-            return bestScore;
+            return maxScore;
         }
 
-        // Быстрая генерация ходов внутри AI (копия логики из ViewModel, но без проверок UI)
         private List<(int fromX, int fromY, int toX, int toY)> GenerateAllLegalMovesFast(ChessEngine engine)
         {
-            var moves = new List<(int fromX, int fromY, int toX, int toY)>();
-            var board = engine.Board;
-            var color = engine.CurrentTurn;
-
+            var moves = new List<(int, int, int, int)>();
             for (int y = 0; y < 8; y++)
             {
                 for (int x = 0; x < 8; x++)
                 {
-                    var piece = board[y, x];
-                    if (piece != null && piece.Color == color)
+                    var piece = engine.Board[y, x];
+                    if (piece != null && piece.Color == engine.CurrentTurn)
                     {
-                        var pseudoMoves = piece.GetLegalMoves(board, new Position(x, y));
+                        var pseudoMoves = engine.GetPseudoMoves(x, y);
+                        
                         foreach (var target in pseudoMoves)
                         {
-                            if (IsMoveLegalFast(engine, x, y, target.X, target.Y))
+                            int tx = target.x;
+                            int ty = target.y;
+
+                            var result = engine.TryMakeMove(x, y, tx, ty);
+                            if (result.Success)
                             {
-                                moves.Add((x, y, target.X, target.Y));
+                                moves.Add((x, y, tx, ty));
+                                engine.UndoMove();
                             }
                         }
-                        // Тут можно добавить рокировку и En Passant, если критично, 
-                        // но для глубины 2 часто хватает базовой геометрии + шах.
-                        // Для надежности лучше скопировать полную логику из ViewModel.IsMoveLegal + рокировки.
-                        // Но чтобы код был компактным, оставим базу. Если бот не рокируется - не страшно пока.
                     }
                 }
             }
             return moves;
-        }
-
-        private bool IsMoveLegalFast(ChessEngine engine, int fromX, int fromY, int toX, int toY)
-        {
-            var piece = engine.Board[fromY, fromX];
-            var captured = engine.Board[toY, toX];
-
-            engine.Board[toY, toX] = piece;
-            engine.Board[fromY, fromX] = null;
-
-            bool isCheck = engine.IsKingInCheck(piece.Color);
-
-            engine.Board[fromY, fromX] = piece;
-            engine.Board[toY, toX] = captured;
-
-            return !isCheck;
         }
     }
 }
