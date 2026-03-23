@@ -1,74 +1,84 @@
-using System; 
-using Avalonia; 
+using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Data; 
-using Avalonia.Threading; 
-using Avalonia.Input; 
-using kchess; 
+using Avalonia.Data;
+using Avalonia.Threading;
+using Avalonia.Input;
+using kchess;
 using kchess.Graphics;
 using Avalonia.Platform;
-using System.Threading; // Для Timer
+using System.Threading;
 using Avalonia.Interactivity;
-using System.Collections.Generic; // Для List<>
-using System.Linq;                // Для FirstOrDefault()
-using kchess.Models; 
-using kchess.Services; 
+using System.Collections.Generic;
+using System.Linq;
+using kchess.Models;
+using kchess.Services;
+using System.ComponentModel;
 
 namespace kchess.Graphics
 {
     public partial class MainWindow : Window
     {
-        private AppSettings _settings; 
+        private AppSettings _settings;
 
-        //флаги
-        private bool _isVsAi = false; // true если игра против ИИ
+        private bool _isVsAi = false;
         private bool _isAiThinking = false;
-        private bool _isNetworkHost = false; // True если создаётся сервер
-        private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
+        private bool _isNetworkHost = false;
+        private string? _selectedDifficulty = null;
         private PieceColor _playerColorForAi = PieceColor.White;
 
         private readonly List<Border> _cells = new List<Border>();
-        private readonly List<Image> _images = new List<Image>(); 
+        private readonly List<Image> _images = new List<Image>();
         private int? _selectedX;
         private int? _selectedY;
 
-        // для подсветки
-        private List<(int x, int y)> _possibleMoves = new List<(int, int)>(); 
+        private List<(int x, int y)> _possibleMoves = new List<(int, int)>();
         public Color HighlightColor { get; set; } = Color.Parse("#FFFF00");
 
         public MainWindow()
         {
-            // Загрузка настроек
             _settings = SettingsService.Load();
-            HighlightColor = _settings.GetHighlightColor();            
+            HighlightColor = _settings.GetHighlightColor();
             InitializeComponent();
-            
-            // Строим доску сразу при запуске
-            BuildChessBoard(); 
-            // Показываем главное меню
-            ShowMainMenu(); 
+
+            BuildChessBoard();
+            ShowMainMenu();
+
+        this.DataContextChanged += MainWindow_DataContextChanged;
         }
 
-        // ГЛАВНОЕ МЕНЮ: СЕТЬ 
+        private void MainWindow_DataContextChanged(object? sender, EventArgs e)
+        {
+            if (this.DataContext is INotifyPropertyChanged vm)
+            {
+                vm.PropertyChanged += ViewModel_PropertyChanged;
+            }
+        }
+
+        private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.Board))
+            {
+                Dispatcher.UIThread.Post(() => UpdateBoardVisuals());
+            }
+        }
+
         private void CreateNetworkGame_Click(object? sender, RoutedEventArgs e)
         {
             _isNetworkHost = true;
-            // переход на выбор стороны
             ShowSideSelection("Режим: Онлайн (Хост)\nВыберите вашу сторону");
         }
 
         private void JoinNetworkGame_Click(object? sender, RoutedEventArgs e)
         {
             _isNetworkHost = false;
-            // на экран ввода IP
             ShowJoinPanel();
         }
 
-        // ПЕРЕХОДЫ 
         private void ShowJoinPanel()
         {
             MainMenuPanel.IsVisible = false;
@@ -76,7 +86,6 @@ namespace kchess.Graphics
             HostSetupPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
-            
             JoinSetupPanel.IsVisible = true;
         }
 
@@ -86,44 +95,37 @@ namespace kchess.Graphics
             AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
-            
             HostSetupPanel.IsVisible = true;
         }
 
-        // Методы навигации
         private void ShowMainMenu()
         {
             MainMenuPanel.IsVisible = true;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
-
         }
 
-        // МЕНЮ ВЫБОРА СЛОЖНОСТИ 
         private void SelectAiDifficulty_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string difficulty)
             {
                 Console.WriteLine($">>> КЛИК ПО СЛОЖНОСТИ: {difficulty}");
-                
+
                 var vm = this.DataContext as MainViewModel;
                 if (vm == null) return;
 
-                // 1. Явно говорим VM: включаем режим ИИ
                 bool playerIsWhite = (_playerColorForAi == PieceColor.White);
                 vm.StartGameVsAI(playerIsWhite);
-                
+
                 Console.WriteLine($">>> РЕЖИМ В VM: {vm.CurrentMode}");
                 Console.WriteLine($">>> ИГРОК: {(playerIsWhite ? "Белые" : "Черные")}");
 
-                // 2. Запускаем визуальную часть
                 StartGame(playerIsWhite);
-                
-                // 3. Если бот играет белыми, запускаем его ход сразу
-                if (!playerIsWhite) 
+
+                if (!playerIsWhite)
                 {
                     Console.WriteLine(">>> БОТ ИГРАЕТ БЕЛЫМИ. ЗАПУСК ХОДА...");
-                    System.Threading.Tasks.Task.Delay(500).ContinueWith(_ => 
+                    System.Threading.Tasks.Task.Delay(500).ContinueWith(_ =>
                     {
                         Dispatcher.UIThread.Post(() => vm.MakeAiMove());
                     });
@@ -140,26 +142,20 @@ namespace kchess.Graphics
             if (vm == null) return;
 
             bool playerIsWhite = (_playerColorForAi == PieceColor.White);
-            
-            // Вызываем метод, который ставит режим PvAI
-            vm.StartGameVsAI(playerIsWhite); 
-            
+            vm.StartGameVsAI(playerIsWhite);
             Console.WriteLine($">>> VM MODE SET TO: {vm.CurrentMode} <<<");
-
             StartGame(playerIsWhite);
         }
 
-        // МЕНЮ ВЫБОРА СТОРОНЫ
         private void ShowSideSelection(string title)
         {
             SetupTitleText.Text = title;
-            
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = true;
             GamePanel.IsVisible = false;
         }
-        
+
         private void ChooseSide_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string colorTag)
@@ -180,14 +176,13 @@ namespace kchess.Graphics
                 {
                     Console.WriteLine(">>> ЗАПУСК ЛОКАЛЬНОЙ ИГРЫ");
                     var vm = this.DataContext as MainViewModel;
-                    vm.StartLocalGame(); // <--- ЯВНЫЙ ВЫЗОВ
+                    vm.StartLocalGame();
                     StartGame(playAsWhite);
                 }
             }
         }
 
-        // Обработчик кнопки "Выход" в главном меню
-        private void ExitApp_Click(object? sender, RoutedEventArgs e) => Close(); 
+        private void ExitApp_Click(object? sender, RoutedEventArgs e) => Close();
 
         private void ShowSetup()
         {
@@ -201,108 +196,84 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // Сбрасываем движок, расставляем фигуры в памяти
-            vm.NewGame(); 
-            // ==========================
-
-            // Теперь рисуем доску (клетки уже будут знать, куда смотреть)
-            BuildChessBoard(playerIsWhite);            
+            vm.NewGame();
+            BuildChessBoard(playerIsWhite);
             UpdateBoardVisuals();
-            
+
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = true;
-            
-            // Обновляем статус (опционально)
+
             vm.SetStatus($"Игра началась! Вы играете за {(playerIsWhite ? "белых" : "черных")}");
-            
             this.Activate();
         }
-        
-        // Обработчик кнопки "В главное меню" из игры
+
         private void BackToMenuFromGame_Click(object? sender, RoutedEventArgs e) => BackToMenu_Click(sender, e);
 
-        // Обработчики кнопок
         private void StartLocalFriend_Click(object? sender, RoutedEventArgs e)
         {
-            _isVsAi = false; // Сбрасываем флаг ИИ
+            _isVsAi = false;
             ShowSideSelection("Режим: Игра с другом\nВыберите сторону");
         }
-        
+
         private void BackToMenu_Click(object? sender, RoutedEventArgs e)
         {
-            // СБРОС ВСЕХ ФЛАГОВ СОСТОЯНИЯ
             _isVsAi = false;
             _isNetworkHost = false;
             _selectedDifficulty = null;
-            
-            // СКРЫВАЕМ ВСЕ ПАНЕЛИ
+
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             HostSetupPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
             JoinSetupPanel.IsVisible = false;
-
-            // ПОКАЗЫВАЕМ ГЛАВНОЕ МЕНЮ
             MainMenuPanel.IsVisible = true;
-            
+
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Главное меню");
         }
-        
+
         private void BackToSideSelection_Click(object? sender, RoutedEventArgs e)
         {
-            // Скрываем лишние панели
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             HostSetupPanel.IsVisible = false;
             JoinSetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
-
-            // Показываем панель выбора стороны
             SetupPanel.IsVisible = true;
-        }    
+        }
 
-        // заглушки на функции оставленные на будущее
-        // Когда хост нажал "Создать сервер"
         private void StartHostServer_Click(object? sender, RoutedEventArgs e)
         {
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Создание сервера... (В разработке)");
-            
-            System.Threading.Thread.Sleep(500); // Имитация задержки
+            System.Threading.Thread.Sleep(500);
             vm?.SetStatus("Онлайн режим в разработке!");
-
-            ShowHostSetupPanel(); 
+            ShowHostSetupPanel();
         }
 
         private void StartJoinClient_Click(object? sender, RoutedEventArgs e)
         {
-            // если Text вдруг null, берем пустую строку
             string ip = IpInputBox.Text ?? string.Empty;
-            
             if (string.IsNullOrWhiteSpace(ip))
             {
                 var vm = this.DataContext as MainViewModel;
                 vm?.SetStatus("Введите IP адрес!");
                 return;
             }
-
             var vm2 = this.DataContext as MainViewModel;
             vm2?.SetStatus($"Подключение к {ip}... (В разработке)");
-            
             System.Threading.Thread.Sleep(500);
             vm2?.SetStatus("Онлайн режим в разработке!");
-            
             ShowJoinPanel();
-        }   
+        }
 
         private void StartVsAi_Click(object? sender, RoutedEventArgs e)
         {
             _isVsAi = true;
-            _selectedDifficulty = null; 
+            _selectedDifficulty = null;
             ShowSideSelection("Режим: Против ИИ\nВыберите сторону");
         }
 
@@ -312,48 +283,41 @@ namespace kchess.Graphics
             AiDifficultyPanel.IsVisible = true;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
-        }      
+        }
 
         private void ShowNetworkMenu_Click(object? sender, RoutedEventArgs e)
         {
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Онлайн режим в разработке...");
         }
-        
-        // пипетка
+
         private void OpenHighlightColorPicker_Click(object? sender, RoutedEventArgs e)
         {
             if (SettingsPopup != null) SettingsPopup.IsOpen = false;
-
             var picker = new ColorPickerDialog();
             picker.SetInitialColor(HighlightColor);
-
             picker.ColorSelected += (s, color) =>
             {
                 HighlightColor = color;
                 UpdateSelectionBorderColor();
-
-                if (_settings != null) // Защита от null
+                if (_settings != null)
                 {
                     _settings.HighlightColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
                     SettingsService.Save(_settings);
                 }
             };
-
             if (this.Content is Grid mainGrid)
             {
                 mainGrid.Children.Add(picker);
             }
         }
 
-        // Метод обновления цвета уже существующих рамок на доске
         private void UpdateSelectionBorderColor()
         {
             foreach (var cell in _cells)
             {
                 if (cell.Child is Grid gridContainer)
                 {
-                    // Ищем бордер рамки внутри клетки
                     var border = gridContainer.Children.FirstOrDefault(c => c is Border b && b.Name == "SelectionBorder") as Border;
                     if (border != null)
                     {
@@ -361,7 +325,7 @@ namespace kchess.Graphics
                     }
                 }
             }
-        }        
+        }
 
         private void BuildChessBoard(bool isWhitePerspective = true)
         {
@@ -389,7 +353,6 @@ namespace kchess.Graphics
             {
                 for (int x = 0; x < BoardSize; x++)
                 {
-                    // Маппинг визуальных координат (x,y) на логические (logicX, logicY)
                     int logicX = isWhitePerspective ? x : (BoardSize - 1 - x);
                     int logicY = isWhitePerspective ? y : (BoardSize - 1 - y);
 
@@ -412,13 +375,14 @@ namespace kchess.Graphics
                     var coordColor = isDark ? DarkCoordColor : LightCoordColor;
                     var brush = new SolidColorBrush(coordColor);
 
-                    // Координаты: буквы снизу, цифры справа (относительно игрока)
                     if (y == BoardSize - 1)
                     {
                         contentGrid.Children.Add(new TextBlock
                         {
                             Text = files[logicX],
-                            FontSize = 12, FontWeight = FontWeight.Bold, Foreground = brush,
+                            FontSize = 12,
+                            FontWeight = FontWeight.Bold,
+                            Foreground = brush,
                             HorizontalAlignment = HorizontalAlignment.Left,
                             VerticalAlignment = VerticalAlignment.Bottom,
                             Margin = new Thickness(2, 0, 0, 2),
@@ -431,7 +395,9 @@ namespace kchess.Graphics
                         contentGrid.Children.Add(new TextBlock
                         {
                             Text = (BoardSize - logicY).ToString(),
-                            FontSize = 12, FontWeight = FontWeight.Bold, Foreground = brush,
+                            FontSize = 12,
+                            FontWeight = FontWeight.Bold,
+                            Foreground = brush,
                             HorizontalAlignment = HorizontalAlignment.Right,
                             VerticalAlignment = VerticalAlignment.Top,
                             Margin = new Thickness(0, 2, 2, 0),
@@ -464,9 +430,11 @@ namespace kchess.Graphics
 
             UpdateBoardVisuals();
         }
-     
+
         private void UpdateBoardVisuals()
         {
+            Console.WriteLine("[UI] UpdateBoardVisuals вызван!"); // <--- для отладки
+
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
@@ -481,7 +449,6 @@ namespace kchess.Graphics
 
                 if (cell.Child is not Grid gridContainer) continue;
 
-                // 1. Контур выделения
                 var selectionBorder = gridContainer.Children
                     .FirstOrDefault(c => c is Border b && b.Name == "SelectionBorder") as Border;
 
@@ -499,9 +466,9 @@ namespace kchess.Graphics
                     gridContainer.Children.Insert(0, selectionBorder);
                 }
 
-                selectionBorder.IsVisible = (_selectedX == x && _selectedY == y);
+                bool isSelected = (_selectedX == x && _selectedY == y);
+                selectionBorder.IsVisible = isSelected;
 
-                // 2. Призрак хода
                 bool isPossibleMove = _possibleMoves.Any(m => m.x == x && m.y == y);
                 var ghostImage = gridContainer.Children
                     .FirstOrDefault(c => c is Image i && i.Name != null && i.Name.StartsWith("Ghost")) as Image;
@@ -522,16 +489,18 @@ namespace kchess.Graphics
                         gridContainer.Children.Add(ghostImage);
                     }
 
-                    var selectedPiece = vm.Board[_selectedY!.Value, _selectedX!.Value];
+                    var selectedPiece = (_selectedX.HasValue && _selectedY.HasValue)
+                        ? vm.Board[_selectedY.Value, _selectedX.Value]
+                        : null;
+
                     if (selectedPiece != null)
                     {
-                        LoadPieceImage(ghostImage!, selectedPiece);
-                        // Скрываем призрака, если на клетке стоит своя фигура (атака)
-                        ghostImage!.IsVisible = (piece == null || piece.Color != selectedPiece.Color);
+                        LoadPieceImage(ghostImage, selectedPiece);
+                        ghostImage.IsVisible = (piece == null || piece.Color != selectedPiece.Color);
                     }
                     else
                     {
-                        ghostImage!.IsVisible = false;
+                        ghostImage.IsVisible = false;
                     }
                 }
                 else if (ghostImage != null)
@@ -539,34 +508,50 @@ namespace kchess.Graphics
                     ghostImage.IsVisible = false;
                 }
 
-                // 3. Реальная фигура
                 var realImage = gridContainer.Children
                     .FirstOrDefault(c => c is Image i && i.Name != null && i.Name.StartsWith("PieceImage_")) as Image;
-                if (realImage != null)
+
+                if (realImage == null)
                 {
-                    if (piece != null)
+                    realImage = new Image
                     {
-                        LoadPieceImage(realImage, piece);
-                        realImage.IsVisible = true;
-                    }
-                    else
-                    {
-                        realImage.IsVisible = false;
-                        realImage.Source = null;
-                    }
+                        Name = $"PieceImage_{x}_{y}",
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Stretch = Stretch.Uniform,
+                        IsHitTestVisible = false
+                    };
+                    gridContainer.Children.Add(realImage);
+                }
+
+                if (piece != null)
+                {
+                    LoadPieceImage(realImage, piece);
+                    realImage.IsVisible = true;
+                }
+                else
+                {
+                    realImage.IsVisible = false;
+                    realImage.Source = null;
                 }
             }
+
+            this.InvalidateVisual();
         }
 
-        // Вспомогательный метод загрузки картинки (чтобы не дублировать код)
         private void LoadPieceImage(Image image, Piece piece)
         {
             if (piece == null) { image.Source = null; return; }
 
             string figCode = piece.Type switch
             {
-                PieceType.Pawn => "p", PieceType.Knight => "n", PieceType.Bishop => "b",
-                PieceType.Rook => "r", PieceType.Queen => "q", PieceType.King => "k", _ => ""
+                PieceType.Pawn => "p",
+                PieceType.Knight => "n",
+                PieceType.Bishop => "b",
+                PieceType.Rook => "r",
+                PieceType.Queen => "q",
+                PieceType.King => "k",
+                _ => ""
             };
             string colorCode = (piece.Color == PieceColor.White) ? "l" : "d";
             string fileName = $"Chess_{figCode}{colorCode}t60.png";
@@ -583,12 +568,9 @@ namespace kchess.Graphics
 
         private void OnCellClicked(int x, int y)
         {
-            if (_isAiThinking) return; 
-
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // Если фигура уже выбрана
             if (_selectedX.HasValue && _selectedY.HasValue)
             {
                 bool isMoveValid = _possibleMoves.Any(m => m.x == x && m.y == y);
@@ -596,22 +578,18 @@ namespace kchess.Graphics
                 if (isMoveValid)
                 {
                     var movingPiece = vm.Board[_selectedY.Value, _selectedX.Value];
-                    
-                    // Проверка на превращение пешки
+
                     if (movingPiece?.Type == PieceType.Pawn && (y == 0 || y == 7))
                     {
                         ShowPromotionSelection(_selectedX.Value, _selectedY.Value, x, y);
                         return;
                     }
 
-                    // Обычный ход
                     vm.TryMakeMove(_selectedX.Value, _selectedY.Value, x, y);
                     ClearSelection();
-                    UpdateBoardVisuals();
                     return;
                 }
 
-                // Клик на другую свою фигуру -> перевыбор
                 var piece = vm.Board[y, x];
                 var currentTurnColor = vm.CurrentTurnText.Contains("белых") ? PieceColor.White : PieceColor.Black;
 
@@ -620,17 +598,13 @@ namespace kchess.Graphics
                     _selectedX = x;
                     _selectedY = y;
                     _possibleMoves = vm.GetLegalMoves(x, y);
-                    UpdateBoardVisuals();
                     return;
                 }
 
-                // Клик в пустоту или врага (не ход) -> сброс
                 ClearSelection();
-                UpdateBoardVisuals();
                 return;
             }
 
-            // Если ничего не выбрано -> попытка выбора
             var currentPiece = vm.Board[y, x];
             var turnColor = vm.CurrentTurnText.Contains("белых") ? PieceColor.White : PieceColor.Black;
 
@@ -639,9 +613,7 @@ namespace kchess.Graphics
                 _selectedX = x;
                 _selectedY = y;
                 _possibleMoves = vm.GetLegalMoves(x, y);
-                
                 vm.SetStatus($"Выбрана {currentPiece.Type}. Куда ходим?");
-                UpdateBoardVisuals();
             }
             else
             {
@@ -667,15 +639,13 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // Создаем панель поверх доски
             var popupGrid = new Grid
             {
-                Background = new SolidColorBrush(Color.Parse("#AA000000")), // Затемнение фона
+                Background = new SolidColorBrush(Color.Parse("#AA000000")),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch
             };
 
-            // Контейнер для кнопок (по центру)
             var contentBorder = new Border
             {
                 Background = new SolidColorBrush(Color.Parse("#FF2D2D30")),
@@ -693,7 +663,6 @@ namespace kchess.Graphics
                 HorizontalAlignment = HorizontalAlignment.Center
             };
 
-            // Заголовок
             stackPanel.Children.Add(new TextBlock
             {
                 Text = "Превращение пешки!",
@@ -704,7 +673,6 @@ namespace kchess.Graphics
                 Margin = new Thickness(0, 0, 0, 10)
             });
 
-            // Панель кнопок
             var buttonsPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -714,8 +682,6 @@ namespace kchess.Graphics
 
             var pieces = new[] { PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight };
             var names = new[] { "Ферзь", "Ладья", "Слон", "Конь" };
-            
-            // Цвет пешки
             var pawnColor = vm.Board[fromY, fromX]?.Color ?? PieceColor.White;
 
             for (int i = 0; i < 4; i++)
@@ -725,26 +691,18 @@ namespace kchess.Graphics
                     Content = names[i],
                     Width = 90,
                     Height = 90,
-                    Tag = pieces[i], // Сохраняем тип фигуры
+                    Tag = pieces[i],
                     FontSize = 14,
                     FontWeight = FontWeight.Bold
                 };
 
-                // Обработчик клика
                 btn.Click += (s, e) =>
                 {
                     var selectedType = (PieceType)btn.Tag!;
-                    
-                    // 1. Делаем ход с выбранной фигурой
                     vm.TryMakeMove(fromX, fromY, toX, toY, selectedType);
-                    
-                    // 2. Удаляем окно
                     if (popupGrid.Parent is Grid parent)
                         parent.Children.Remove(popupGrid);
-
-                    // 3. Сброс и перерисовка
                     ClearSelection();
-                    UpdateBoardVisuals();
                 };
 
                 buttonsPanel.Children.Add(btn);
@@ -754,7 +712,6 @@ namespace kchess.Graphics
             contentBorder.Child = stackPanel;
             popupGrid.Children.Add(contentBorder);
 
-            // Добавляем на главный экран
             if (this.Content is Grid mainGrid)
             {
                 mainGrid.Children.Add(popupGrid);
