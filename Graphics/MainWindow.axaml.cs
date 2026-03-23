@@ -26,6 +26,7 @@ namespace kchess.Graphics
 
         //флаги
         private bool _isVsAi = false; // true если игра против ИИ
+        private bool _isAiThinking = false;
         private bool _isNetworkHost = false; // True если создаётся сервер
         private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
         private PieceColor _playerColorForAi = PieceColor.White;
@@ -103,19 +104,50 @@ namespace kchess.Graphics
         {
             if (sender is Button btn && btn.Tag is string difficulty)
             {
-                _selectedDifficulty = difficulty;
-                TryStartAiGame();
+                Console.WriteLine($">>> КЛИК ПО СЛОЖНОСТИ: {difficulty}");
+                
+                var vm = this.DataContext as MainViewModel;
+                if (vm == null) return;
+
+                // 1. Явно говорим VM: включаем режим ИИ
+                bool playerIsWhite = (_playerColorForAi == PieceColor.White);
+                vm.StartGameVsAI(playerIsWhite);
+                
+                Console.WriteLine($">>> РЕЖИМ В VM: {vm.CurrentMode}");
+                Console.WriteLine($">>> ИГРОК: {(playerIsWhite ? "Белые" : "Черные")}");
+
+                // 2. Запускаем визуальную часть
+                StartGame(playerIsWhite);
+                
+                // 3. Если бот играет белыми, запускаем его ход сразу
+                if (!playerIsWhite) 
+                {
+                    Console.WriteLine(">>> БОТ ИГРАЕТ БЕЛЫМИ. ЗАПУСК ХОДА...");
+                    System.Threading.Tasks.Task.Delay(500).ContinueWith(_ => 
+                    {
+                        Dispatcher.UIThread.Post(() => vm.MakeAiMove());
+                    });
+                }
             }
         }
 
         private void TryStartAiGame()
         {
+            Console.WriteLine(">>> TRY START AI GAME <<<");
+            if (_selectedDifficulty == null) return;
+
             var vm = this.DataContext as MainViewModel;
-            vm?.SetStatus($"Режим ИИ ({_selectedDifficulty}) в разработке!");
-            /* на будущее
-               StartGame(isVsAi: true, playerIsWhite: (_playerColorForAi == PieceColor.White));
-            */
-        }       
+            if (vm == null) return;
+
+            bool playerIsWhite = (_playerColorForAi == PieceColor.White);
+            
+            // Вызываем метод, который ставит режим PvAI
+            vm.StartGameVsAI(playerIsWhite); 
+            
+            Console.WriteLine($">>> VM MODE SET TO: {vm.CurrentMode} <<<");
+
+            StartGame(playerIsWhite);
+        }
 
         // МЕНЮ ВЫБОРА СТОРОНЫ
         private void ShowSideSelection(string title)
@@ -141,12 +173,15 @@ namespace kchess.Graphics
                 }
                 else if (_isVsAi)
                 {
+                    Console.WriteLine(">>> ЗАХОД В ВЕТКУ ИИ <<<");
                     ShowAiDifficultySelection();
                 }
                 else
                 {
-                    // Запускаем игру
-                    StartGame(isVsAi: false, playerIsWhite: playAsWhite);
+                    Console.WriteLine(">>> ЗАПУСК ЛОКАЛЬНОЙ ИГРЫ");
+                    var vm = this.DataContext as MainViewModel;
+                    vm.StartLocalGame(); // <--- ЯВНЫЙ ВЫЗОВ
+                    StartGame(playAsWhite);
                 }
             }
         }
@@ -161,35 +196,20 @@ namespace kchess.Graphics
             GamePanel.IsVisible = false;
         }
 
-        private void StartGame(bool isVsAi, bool playerIsWhite)
+        private void StartGame(bool playerIsWhite)
         {
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
-            // Сброс игры
-            vm.NewGame();
-
-            // строим доску с нужной перспективой
+            // Просто рисуем доску и показываем панель игры
             BuildChessBoard(playerIsWhite);            
-            vm.SetStatus($"Игра началась! Режим: {(isVsAi ? "ИИ" : "Друг")}");
-
-            // Жесткое переключение видимости
+            UpdateBoardVisuals();
+            
             MainMenuPanel.IsVisible = false;
             AiDifficultyPanel.IsVisible = false;
             SetupPanel.IsVisible = false;
-            
             GamePanel.IsVisible = true;
-
-            if (ChessBoardGrid == null)
-            {
-                vm.SetStatus("ОШИБКА: ChessBoardGrid не найден!");
-                return;
-            }
-
-            // расставляем фигуры
-            UpdateBoardVisuals();
             
-            // Фокус на окно чтобы не потерялось
             this.Activate();
         }
         
@@ -199,7 +219,7 @@ namespace kchess.Graphics
         // Обработчики кнопок
         private void StartLocalFriend_Click(object? sender, RoutedEventArgs e)
         {
-            _isVsAi = false;
+            _isVsAi = false; // Сбрасываем флаг ИИ
             ShowSideSelection("Режим: Игра с другом\nВыберите сторону");
         }
         
@@ -556,6 +576,8 @@ namespace kchess.Graphics
 
         private void OnCellClicked(int x, int y)
         {
+            if (_isAiThinking) return; 
+
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
