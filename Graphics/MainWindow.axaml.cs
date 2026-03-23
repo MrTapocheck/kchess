@@ -24,7 +24,6 @@ namespace kchess.Graphics
     public partial class MainWindow : Window
     {
         private AppSettings _settings;
-
         private bool _isVsAi = false;
         private bool _isAiThinking = false;
         private bool _isNetworkHost = false;
@@ -44,11 +43,9 @@ namespace kchess.Graphics
             _settings = SettingsService.Load();
             HighlightColor = _settings.GetHighlightColor();
             InitializeComponent();
-
             BuildChessBoard();
             ShowMainMenu();
-
-        this.DataContextChanged += MainWindow_DataContextChanged;
+            this.DataContextChanged += MainWindow_DataContextChanged;
         }
 
         private void MainWindow_DataContextChanged(object? sender, EventArgs e)
@@ -61,7 +58,8 @@ namespace kchess.Graphics
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(MainViewModel.Board))
+            if (e.PropertyName == nameof(MainViewModel.Board) ||
+                e.PropertyName == nameof(MainViewModel.IsAiCalculating))
             {
                 Dispatcher.UIThread.Post(() => UpdateBoardVisuals());
             }
@@ -110,7 +108,6 @@ namespace kchess.Graphics
             if (sender is Button btn && btn.Tag is string difficulty)
             {
                 Console.WriteLine($">>> КЛИК ПО СЛОЖНОСТИ: {difficulty}");
-
                 var vm = this.DataContext as MainViewModel;
                 if (vm == null) return;
 
@@ -415,9 +412,9 @@ namespace kchess.Graphics
                     };
                     contentGrid.Children.Add(pieceImage);
 
-                    cellBorder.PointerReleased += (s, e) =>
+                    cellBorder.PointerReleased += (s, ev) =>
                     {
-                        if (e.InitialPressMouseButton == MouseButton.Left)
+                        if (ev.InitialPressMouseButton == MouseButton.Left)
                             OnCellClicked(logicX, logicY);
                     };
                     cellBorder.Cursor = new Cursor(StandardCursorType.Hand);
@@ -433,10 +430,11 @@ namespace kchess.Graphics
 
         private void UpdateBoardVisuals()
         {
-            Console.WriteLine("[UI] UpdateBoardVisuals вызван!"); // <--- для отладки
-
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
+
+            if (vm.IsAiCalculating)
+                return;
 
             foreach (var cell in _cells)
             {
@@ -568,6 +566,8 @@ namespace kchess.Graphics
 
         private void OnCellClicked(int x, int y)
         {
+            if (_isAiThinking) return;
+
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
 
