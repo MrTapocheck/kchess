@@ -100,11 +100,78 @@ namespace kchess.Services
         private static float ToAiPerspective(float whiteMinusBlack, PieceColor aiColor) =>
             aiColor == PieceColor.White ? whiteMinusBlack : -whiteMinusBlack;
 
+        private readonly struct SearchUndo
+        {
+            public readonly Piece? MovingPiece;
+            public readonly Piece? CapturedOnTarget;
+            public readonly Piece? CapturedEnPassantPawn;
+            public readonly bool IsEnPassant;
+            public readonly bool IsCastling;
+            public readonly int RookFromX;
+            public readonly int RookToX;
+            public readonly int RookY;
+            public readonly Position? EnPassantTargetBefore;
+            public readonly bool WhiteKingMovedBefore;
+            public readonly bool BlackKingMovedBefore;
+            public readonly bool WhiteRookKingsideMovedBefore;
+            public readonly bool WhiteRookQueensideMovedBefore;
+            public readonly bool BlackRookKingsideMovedBefore;
+            public readonly bool BlackRookQueensideMovedBefore;
+
+            public SearchUndo(
+                Piece? movingPiece,
+                Piece? capturedOnTarget,
+                Piece? capturedEnPassantPawn,
+                bool isEnPassant,
+                bool isCastling,
+                int rookFromX,
+                int rookToX,
+                int rookY,
+                Position? enPassantTargetBefore,
+                bool whiteKingMovedBefore,
+                bool blackKingMovedBefore,
+                bool whiteRookKingsideMovedBefore,
+                bool whiteRookQueensideMovedBefore,
+                bool blackRookKingsideMovedBefore,
+                bool blackRookQueensideMovedBefore)
+            {
+                MovingPiece = movingPiece;
+                CapturedOnTarget = capturedOnTarget;
+                CapturedEnPassantPawn = capturedEnPassantPawn;
+                IsEnPassant = isEnPassant;
+                IsCastling = isCastling;
+                RookFromX = rookFromX;
+                RookToX = rookToX;
+                RookY = rookY;
+                EnPassantTargetBefore = enPassantTargetBefore;
+                WhiteKingMovedBefore = whiteKingMovedBefore;
+                BlackKingMovedBefore = blackKingMovedBefore;
+                WhiteRookKingsideMovedBefore = whiteRookKingsideMovedBefore;
+                WhiteRookQueensideMovedBefore = whiteRookQueensideMovedBefore;
+                BlackRookKingsideMovedBefore = blackRookKingsideMovedBefore;
+                BlackRookQueensideMovedBefore = blackRookQueensideMovedBefore;
+            }
+        }
+
+        private static bool IsEnPassantCapture(ChessEngine engine, (int fromX, int fromY, int toX, int toY) move, Piece movingPiece)
+        {
+            if (movingPiece.Type != PieceType.Pawn) return false;
+            if (move.fromX == move.toX) return false;
+            if (engine.Board[move.toY, move.toX] != null) return false;
+            if (!engine._enPassantTarget.HasValue) return false;
+
+            var ep = engine._enPassantTarget.Value;
+            return ep.X == move.toX && ep.Y == move.toY;
+        }
+
         private int GetMoveOrderingScore(ChessEngine engine, (int fromX, int fromY, int toX, int toY) move)
         {
             var attacker = engine.Board[move.fromY, move.fromX];
             var captured = engine.Board[move.toY, move.toX];
             if (attacker == null) return int.MinValue;
+
+            if (captured == null && IsEnPassantCapture(engine, move, attacker))
+                return GetPieceValue(PieceType.Pawn) * 10 - GetPieceValue(attacker.Type);
             if (captured == null) return 0;
 
             // MVV-LVA: victim value - attacker value (скорее всего даст приоритет взятиям)
@@ -166,19 +233,12 @@ namespace kchess.Services
 
             foreach (var move in candidates)
             {
-                // 1. Делаем ход
-                var piece = engine.Board[move.fromY, move.fromX];
-                var captured = engine.Board[move.toY, move.toX];
-                
-                engine.Board[move.toY, move.toX] = piece;
-                engine.Board[move.fromY, move.fromX] = null;
+                ApplyMoveForSearch(engine, move, out var undo);
 
                 // После хода ИИ ходит противник => классический Minimax в режиме minimizing.
                 float score = Minimax(engine, DEPTH - 1, alpha, beta, aiColor, ToggleColor(aiColor));
 
-                // 3. Откатываем ход
-                engine.Board[move.fromY, move.fromX] = piece;
-                engine.Board[move.toY, move.toX] = captured;
+                UnmakeMoveForSearch(engine, move, undo);
 
                 // 4. Alpha-Beta логика
                 if (score > bestScore)
@@ -254,17 +314,11 @@ namespace kchess.Services
                     for (int i = 0; i < batchCount; i++)
                     {
                         var move = moves[start + i];
-                        var piece = engine.Board[move.fromY, move.fromX];
-                        var captured = engine.Board[move.toY, move.toX];
-
-                        engine.Board[move.toY, move.toX] = piece;
-                        engine.Board[move.fromY, move.fromX] = null;
+                        ApplyMoveForSearch(engine, move, out var undo);
 
                         _evaluator.EncodeBoard(engine.Board, batchInput, i);
 
-                        // Откат
-                        engine.Board[move.fromY, move.fromX] = piece;
-                        engine.Board[move.toY, move.toX] = captured;
+                        UnmakeMoveForSearch(engine, move, undo);
                     }
 
                     var evals = _evaluator.EvaluateBatch(batchInput, batchCount); // white-black
@@ -315,18 +369,11 @@ namespace kchess.Services
 
             foreach (var move in moves)
             {
-                var piece = engine.Board[move.fromY, move.fromX];
-                var captured = engine.Board[move.toY, move.toX];
-
-                // Делаем ход
-                engine.Board[move.toY, move.toX] = piece;
-                engine.Board[move.fromY, move.fromX] = null;
+                ApplyMoveForSearch(engine, move, out var undo);
 
                 float score = Minimax(engine, depth - 1, alpha, beta, aiColor, ToggleColor(sideToMove));
 
-                // Откат
-                engine.Board[move.fromY, move.fromX] = piece;
-                engine.Board[move.toY, move.toX] = captured;
+                UnmakeMoveForSearch(engine, move, undo);
 
                 if (isMaximizing)
                 {
@@ -379,36 +426,203 @@ namespace kchess.Services
                         var pseudoMoves = piece.GetLegalMoves(board, new Position(x, y));
                         foreach (var target in pseudoMoves)
                         {
-                            if (IsMoveLegalFast(engine, x, y, target.X, target.Y))
+                            var m = (x, y, target.X, target.Y);
+                            if (IsMoveLegalFast(engine, m, color))
+                                moves.Add(m);
+                        }
+
+                        if (piece.Type == PieceType.Pawn && engine._enPassantTarget.HasValue)
+                        {
+                            var ep = engine._enPassantTarget.Value;
+                            int dir = piece.Color == PieceColor.White ? -1 : 1;
+                            if (ep.Y == y + dir && Math.Abs(ep.X - x) == 1)
                             {
-                                moves.Add((x, y, target.X, target.Y));
+                                var m = (x, y, ep.X, ep.Y);
+                                if (IsMoveLegalFast(engine, m, color))
+                                    moves.Add(m);
                             }
                         }
-                        // Тут можно добавить рокировку и En Passant, если критично, 
-                        // но для глубины 2 часто хватает базовой геометрии + шах.
-                        // Для надежности лучше скопировать полную логику из ViewModel.IsMoveLegal + рокировки.
-                        // Но чтобы код был компактным, оставим базу. Если бот не рокируется - не страшно пока.
+
+                        if (piece.Type == PieceType.King)
+                        {
+                            AddCastlingMovesFast(engine, moves, x, y, color);
+                        }
                     }
                 }
             }
             return moves;
         }
 
-        private bool IsMoveLegalFast(ChessEngine engine, int fromX, int fromY, int toX, int toY)
+        private bool IsMoveLegalFast(ChessEngine engine, (int fromX, int fromY, int toX, int toY) move, PieceColor movingColor)
         {
-            var piece = engine.Board[fromY, fromX];
+            var piece = engine.Board[move.fromY, move.fromX];
             if (piece == null) return false;
-            var captured = engine.Board[toY, toX];
 
-            engine.Board[toY, toX] = piece;
-            engine.Board[fromY, fromX] = null;
-
-            bool isCheck = engine.IsKingInCheck(piece.Color);
-
-            engine.Board[fromY, fromX] = piece;
-            engine.Board[toY, toX] = captured;
+            ApplyMoveForSearch(engine, move, out var undo);
+            bool isCheck = engine.IsKingInCheck(movingColor);
+            UnmakeMoveForSearch(engine, move, undo);
 
             return !isCheck;
+        }
+
+        private void AddCastlingMovesFast(
+            ChessEngine engine,
+            List<(int fromX, int fromY, int toX, int toY)> moves,
+            int kingX,
+            int kingY,
+            PieceColor color)
+        {
+            if (engine.IsKingInCheck(color)) return;
+
+            bool isWhite = color == PieceColor.White;
+            if (isWhite ? engine._whiteKingMoved : engine._blackKingMoved) return;
+
+            // O-O
+            if (!(isWhite ? engine._whiteRookKingsideMoved : engine._blackRookKingsideMoved) &&
+                engine.Board[kingY, 5] == null && engine.Board[kingY, 6] == null &&
+                !engine.IsSquareAttacked(5, kingY, ToggleColor(color)) &&
+                !engine.IsSquareAttacked(6, kingY, ToggleColor(color)))
+            {
+                var rook = engine.Board[kingY, 7];
+                if (rook != null && rook.Type == PieceType.Rook && rook.Color == color)
+                {
+                    var m = (kingX, kingY, 6, kingY);
+                    if (IsMoveLegalFast(engine, m, color))
+                        moves.Add(m);
+                }
+            }
+
+            // O-O-O
+            if (!(isWhite ? engine._whiteRookQueensideMoved : engine._blackRookQueensideMoved) &&
+                engine.Board[kingY, 1] == null && engine.Board[kingY, 2] == null && engine.Board[kingY, 3] == null &&
+                !engine.IsSquareAttacked(3, kingY, ToggleColor(color)) &&
+                !engine.IsSquareAttacked(2, kingY, ToggleColor(color)))
+            {
+                var rook = engine.Board[kingY, 0];
+                if (rook != null && rook.Type == PieceType.Rook && rook.Color == color)
+                {
+                    var m = (kingX, kingY, 2, kingY);
+                    if (IsMoveLegalFast(engine, m, color))
+                        moves.Add(m);
+                }
+            }
+        }
+
+        private void ApplyMoveForSearch(ChessEngine engine, (int fromX, int fromY, int toX, int toY) move, out SearchUndo undo)
+        {
+            var movingPiece = engine.Board[move.fromY, move.fromX];
+            var capturedOnTarget = engine.Board[move.toY, move.toX];
+            var enPassantBefore = engine._enPassantTarget;
+
+            bool wk = engine._whiteKingMoved;
+            bool bk = engine._blackKingMoved;
+            bool wrk = engine._whiteRookKingsideMoved;
+            bool wrq = engine._whiteRookQueensideMoved;
+            bool brk = engine._blackRookKingsideMoved;
+            bool brq = engine._blackRookQueensideMoved;
+
+            bool isCastling = movingPiece != null && movingPiece.Type == PieceType.King && Math.Abs(move.toX - move.fromX) == 2 && move.toY == move.fromY;
+            bool isEnPassant = movingPiece != null && IsEnPassantCapture(engine, move, movingPiece);
+
+            Piece? capturedEpPawn = null;
+            int rookFromX = -1;
+            int rookToX = -1;
+            int rookY = -1;
+
+            if (isEnPassant && movingPiece != null)
+            {
+                int capturedPawnY = move.fromY;
+                capturedEpPawn = engine.Board[capturedPawnY, move.toX];
+                engine.Board[capturedPawnY, move.toX] = null;
+            }
+
+            engine.Board[move.toY, move.toX] = movingPiece;
+            engine.Board[move.fromY, move.fromX] = null;
+
+            if (isCastling)
+            {
+                bool kingside = move.toX > move.fromX;
+                rookFromX = kingside ? 7 : 0;
+                rookToX = kingside ? 5 : 3;
+                rookY = move.fromY;
+                var rook = engine.Board[rookY, rookFromX];
+                engine.Board[rookY, rookToX] = rook;
+                engine.Board[rookY, rookFromX] = null;
+            }
+
+            engine._enPassantTarget = null;
+            if (movingPiece != null && movingPiece.Type == PieceType.Pawn && Math.Abs(move.toY - move.fromY) == 2)
+            {
+                int epY = (move.fromY + move.toY) / 2;
+                engine._enPassantTarget = new Position(move.toX, epY);
+            }
+
+            if (movingPiece != null)
+            {
+                if (movingPiece.Type == PieceType.King)
+                {
+                    if (movingPiece.Color == PieceColor.White) engine._whiteKingMoved = true;
+                    else engine._blackKingMoved = true;
+                }
+                else if (movingPiece.Type == PieceType.Rook)
+                {
+                    if (movingPiece.Color == PieceColor.White)
+                    {
+                        if (move.fromX == 0 && move.fromY == 7) engine._whiteRookQueensideMoved = true;
+                        if (move.fromX == 7 && move.fromY == 7) engine._whiteRookKingsideMoved = true;
+                    }
+                    else
+                    {
+                        if (move.fromX == 0 && move.fromY == 0) engine._blackRookQueensideMoved = true;
+                        if (move.fromX == 7 && move.fromY == 0) engine._blackRookKingsideMoved = true;
+                    }
+                }
+            }
+
+            if (capturedOnTarget != null && capturedOnTarget.Type == PieceType.Rook)
+            {
+                if (capturedOnTarget.Color == PieceColor.White)
+                {
+                    if (move.toX == 0 && move.toY == 7) engine._whiteRookQueensideMoved = true;
+                    if (move.toX == 7 && move.toY == 7) engine._whiteRookKingsideMoved = true;
+                }
+                else
+                {
+                    if (move.toX == 0 && move.toY == 0) engine._blackRookQueensideMoved = true;
+                    if (move.toX == 7 && move.toY == 0) engine._blackRookKingsideMoved = true;
+                }
+            }
+
+            undo = new SearchUndo(
+                movingPiece, capturedOnTarget, capturedEpPawn, isEnPassant, isCastling,
+                rookFromX, rookToX, rookY, enPassantBefore, wk, bk, wrk, wrq, brk, brq);
+        }
+
+        private void UnmakeMoveForSearch(ChessEngine engine, (int fromX, int fromY, int toX, int toY) move, SearchUndo undo)
+        {
+            if (undo.IsCastling)
+            {
+                var rook = engine.Board[undo.RookY, undo.RookToX];
+                engine.Board[undo.RookY, undo.RookFromX] = rook;
+                engine.Board[undo.RookY, undo.RookToX] = null;
+            }
+
+            engine.Board[move.fromY, move.fromX] = undo.MovingPiece;
+            engine.Board[move.toY, move.toX] = undo.CapturedOnTarget;
+
+            if (undo.IsEnPassant && undo.CapturedEnPassantPawn != null)
+            {
+                int capturedPawnY = move.fromY;
+                engine.Board[capturedPawnY, move.toX] = undo.CapturedEnPassantPawn;
+            }
+
+            engine._enPassantTarget = undo.EnPassantTargetBefore;
+            engine._whiteKingMoved = undo.WhiteKingMovedBefore;
+            engine._blackKingMoved = undo.BlackKingMovedBefore;
+            engine._whiteRookKingsideMoved = undo.WhiteRookKingsideMovedBefore;
+            engine._whiteRookQueensideMoved = undo.WhiteRookQueensideMovedBefore;
+            engine._blackRookKingsideMoved = undo.BlackRookKingsideMovedBefore;
+            engine._blackRookQueensideMoved = undo.BlackRookQueensideMovedBefore;
         }
     }
 }

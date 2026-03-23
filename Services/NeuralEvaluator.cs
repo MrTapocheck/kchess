@@ -102,6 +102,9 @@ namespace kchess.Services
         {
             int baseOffset = batchIndex * InputSize; // в элементах float
 
+        // Очищаем только текущий сегмент (768 флоатов) перед заполнением
+        Array.Clear(batchInput, baseOffset, InputSize); 
+        
             for (int y = 0; y < 8; y++)
             {
                 for (int x = 0; x < 8; x++)
