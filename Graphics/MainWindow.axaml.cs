@@ -6,12 +6,10 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Data; 
-using Avalonia.Threading; 
 using Avalonia.Input; 
 using kchess; 
 using kchess.Graphics;
 using Avalonia.Platform;
-using System.Threading; // Для Timer
 using Avalonia.Interactivity;
 using System.Collections.Generic; // Для List<>
 using System.Linq;                // Для FirstOrDefault()
@@ -105,29 +103,20 @@ namespace kchess.Graphics
             if (sender is Button btn && btn.Tag is string difficulty)
             {
                 Console.WriteLine($">>> КЛИК ПО СЛОЖНОСТИ: {difficulty}");
+                _selectedDifficulty = difficulty;
                 
                 var vm = this.DataContext as MainViewModel;
                 if (vm == null) return;
 
                 // 1. Явно говорим VM: включаем режим ИИ
                 bool playerIsWhite = (_playerColorForAi == PieceColor.White);
-                vm.StartGameVsAI(playerIsWhite);
+                vm.StartGameVsAI(playerIsWhite, GetDepthByDifficulty(difficulty));
                 
                 Console.WriteLine($">>> РЕЖИМ В VM: {vm.CurrentMode}");
                 Console.WriteLine($">>> ИГРОК: {(playerIsWhite ? "Белые" : "Черные")}");
 
                 // 2. Запускаем визуальную часть
                 StartGame(playerIsWhite);
-                
-                // 3. Если бот играет белыми, запускаем его ход сразу
-                if (!playerIsWhite) 
-                {
-                    Console.WriteLine(">>> БОТ ИГРАЕТ БЕЛЫМИ. ЗАПУСК ХОДА...");
-                    System.Threading.Tasks.Task.Delay(500).ContinueWith(_ => 
-                    {
-                        Dispatcher.UIThread.Post(() => vm.MakeAiMove());
-                    });
-                }
             }
         }
 
@@ -142,7 +131,7 @@ namespace kchess.Graphics
             bool playerIsWhite = (_playerColorForAi == PieceColor.White);
             
             // Вызываем метод, который ставит режим PvAI
-            vm.StartGameVsAI(playerIsWhite); 
+            vm.StartGameVsAI(playerIsWhite, GetDepthByDifficulty(_selectedDifficulty)); 
             
             Console.WriteLine($">>> VM MODE SET TO: {vm.CurrentMode} <<<");
 
@@ -211,6 +200,18 @@ namespace kchess.Graphics
             GamePanel.IsVisible = true;
             
             this.Activate();
+
+            // Гарантия первого хода ИИ, если игрок выбрал черных.
+            // Если ИИ уже сходил на этапе запуска в VM, условие не выполнится.
+            if (vm.CurrentMode == GameMode.PvAI)
+            {
+                var playerColor = playerIsWhite ? PieceColor.White : PieceColor.Black;
+                if (vm.CurrentTurnColor != playerColor)
+                {
+                    vm.MakeAiMove();
+                    UpdateBoardVisuals();
+                }
+            }
         }
         
         // Обработчик кнопки "В главное меню" из игры
@@ -305,7 +306,15 @@ namespace kchess.Graphics
             AiDifficultyPanel.IsVisible = true;
             SetupPanel.IsVisible = false;
             GamePanel.IsVisible = false;
-        }      
+        }
+
+        private static int GetDepthByDifficulty(string? difficulty) => difficulty switch
+        {
+            "Easy" => ChessAI.EasyDepth,
+            "Medium" => ChessAI.MediumDepth,
+            "Hard" => ChessAI.HardDepth,
+            _ => ChessAI.MediumDepth
+        };
 
         private void ShowNetworkMenu_Click(object? sender, RoutedEventArgs e)
         {
@@ -606,7 +615,7 @@ namespace kchess.Graphics
 
                 // Клик на другую свою фигуру -> перевыбор
                 var piece = vm.Board[y, x];
-                var currentTurnColor = vm.CurrentTurnText.Contains("белых") ? PieceColor.White : PieceColor.Black;
+                var currentTurnColor = vm.CurrentTurnColor;
 
                 if (piece != null && piece.Color == currentTurnColor)
                 {
@@ -625,7 +634,7 @@ namespace kchess.Graphics
 
             // Если ничего не выбрано -> попытка выбора
             var currentPiece = vm.Board[y, x];
-            var turnColor = vm.CurrentTurnText.Contains("белых") ? PieceColor.White : PieceColor.Black;
+            var turnColor = vm.CurrentTurnColor;
 
             if (currentPiece != null && currentPiece.Color == turnColor)
             {

@@ -27,7 +27,7 @@ namespace kchess
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly ChessEngine _engine;
-        private readonly ChessAI? _ai;
+        private ChessAI? _ai;
         private readonly NeuralEvaluator? _evaluator;
 
         public GameMode CurrentMode { get; private set; } = GameMode.LocalPvP;
@@ -70,6 +70,7 @@ namespace kchess
         }
 
         public Piece?[,] Board => _engine.Board;
+        public PieceColor CurrentTurnColor => _engine.CurrentTurn;
         public string StatusMessage => _engine.LastStatus;
         public string CurrentTurnText => 
             _engine.IsGameOver ? "Игра окончена" : 
@@ -122,13 +123,17 @@ namespace kchess
 
         // --- Методы управления игрой ---
 
-        public void StartGameVsAI(bool playerIsWhite)
+        public void StartGameVsAI(bool playerIsWhite, int aiDepth)
         {
             Console.WriteLine(">>> StartGameVsAI ВЫЗВАН! PlayerIsWhite: " + playerIsWhite); // Лог для отладки (если вдруг увидим)
             
             NewGame();
             CurrentMode = GameMode.PvAI;
             _aiPlaysWhite = !playerIsWhite;
+            if (_evaluator != null)
+            {
+                _ai = new ChessAI(_evaluator, aiDepth);
+            }
             
             SetStatus(playerIsWhite ? "Вы играете белыми против ИИ" : "Вы играете черными против ИИ");
 

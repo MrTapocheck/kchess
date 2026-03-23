@@ -7,7 +7,10 @@ namespace kchess.Services
     public class ChessAI
     {
         private readonly NeuralEvaluator _evaluator;
-        private const int DEPTH = 5; // Глубина поиска: 2 полухода (мой ход + ответ врага)
+        private readonly int _depth;
+        public const int EasyDepth = 2;
+        public const int MediumDepth = 4;
+        public const int HardDepth = 5;
         private const int MaxTtEntries = 1_000_000;
         private const int BatchChunkSize = 16; // depth==1: оцениваем ходы батчами по N
 
@@ -204,9 +207,10 @@ namespace kchess.Services
             return captures;
         }
 
-        public ChessAI(NeuralEvaluator evaluator)
+        public ChessAI(NeuralEvaluator evaluator, int depth = 5)
         {
             _evaluator = evaluator;
+            _depth = Math.Max(1, depth);
         }
 
         public (int fromX, int fromY, int toX, int toY)? GetBestMove(
@@ -236,7 +240,7 @@ namespace kchess.Services
                 ApplyMoveForSearch(engine, move, out var undo);
 
                 // После хода ИИ ходит противник => классический Minimax в режиме minimizing.
-                float score = Minimax(engine, DEPTH - 1, alpha, beta, aiColor, ToggleColor(aiColor));
+                float score = Minimax(engine, _depth - 1, alpha, beta, aiColor, ToggleColor(aiColor));
 
                 UnmakeMoveForSearch(engine, move, undo);
 
