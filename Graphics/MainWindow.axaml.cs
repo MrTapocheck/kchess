@@ -11,10 +11,12 @@ using kchess;
 using kchess.Graphics;
 using Avalonia.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Styling;
 using System.Collections.Generic; // Для List<>
 using System.Linq;                // Для FirstOrDefault()
 using kchess.Models; 
 using kchess.Services; 
+using System.Collections.ObjectModel;
 
 namespace kchess.Graphics
 {
@@ -33,6 +35,11 @@ namespace kchess.Graphics
         private readonly List<Image> _images = new List<Image>(); 
         private int? _selectedX;
         private int? _selectedY;
+        private bool _isWhitePerspective = true;
+        private Color _lightCellColor = Color.Parse("#F0D9B5");
+        private Color _darkCellColor = Color.Parse("#769656");
+        private Color _coordOnLightColor = Colors.Black;
+        private Color _coordOnDarkColor = Colors.White;
 
         // для подсветки
         private List<(int x, int y)> _possibleMoves = new List<(int, int)>(); 
@@ -44,11 +51,120 @@ namespace kchess.Graphics
             _settings = SettingsService.Load();
             HighlightColor = _settings.GetHighlightColor();            
             InitializeComponent();
+            ApplyLoadedSettingsToUi();
+            ApplyBoardTheme(_settings.BoardTheme);
+            ApplyTheme(_settings.Theme);
+            ApplyLanguage(_settings.Language);
             
             // Строим доску сразу при запуске
             BuildChessBoard(); 
             // Показываем главное меню
             ShowMainMenu(); 
+        }
+
+        private void ApplyLoadedSettingsToUi()
+        {
+            if (HintsToggleButton != null)
+                HintsToggleButton.IsChecked = _settings.ShowHints;
+
+            if (PieceSkinComboBox != null)
+            {
+                foreach (var item in PieceSkinComboBox.Items)
+                {
+                    if (item is ComboBoxItem cbItem &&
+                        string.Equals(cbItem.Content?.ToString(), _settings.PieceSkin, StringComparison.OrdinalIgnoreCase))
+                    {
+                        PieceSkinComboBox.SelectedItem = cbItem;
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static double RelativeLuminance(Color c)
+            => (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0;
+
+        private static Color GetContrastColor(Color background)
+            => RelativeLuminance(background) > 0.5 ? Colors.Black : Colors.White;
+
+        private void SaveSettings()
+        {
+            SettingsService.Save(_settings);
+        }
+
+        private void ApplyLanguage(string? langCode)
+        {
+            bool en = string.Equals(langCode, "EN", StringComparison.OrdinalIgnoreCase);
+
+            if (BtnMainVsAi != null) BtnMainVsAi.Content = en ? "Play vs AI" : "Игра против ИИ";
+            if (BtnMainLocal != null) BtnMainLocal.Content = en ? "Play Local" : "Игра с другом";
+            if (BtnMainCreateOnline != null) BtnMainCreateOnline.Content = en ? "Create Online Game" : "Создать онлайн игру";
+            if (BtnMainJoinOnline != null) BtnMainJoinOnline.Content = en ? "Join Online Game" : "Присоединиться к игре";
+            if (BtnMainExit != null) BtnMainExit.Content = en ? "Exit" : "Выход";
+
+            if (TxtHostTitle != null) TxtHostTitle.Text = en ? "Server Setup" : "Настройки сервера";
+            if (TxtHostSubtitle != null) TxtHostSubtitle.Text = en ? "You will play with selected color" : "Вы будете играть за выбранный цвет";
+            if (BtnHostCreateServer != null) BtnHostCreateServer.Content = en ? "Create Server" : "Создать сервер";
+            if (BtnHostBack != null) BtnHostBack.Content = en ? "Back" : "Назад";
+            if (BtnHostMainMenu != null) BtnHostMainMenu.Content = en ? "Main Menu" : "В главное меню";
+
+            if (TxtJoinTitle != null) TxtJoinTitle.Text = en ? "Join Game" : "Подключение к игре";
+            if (TxtJoinSubtitle != null) TxtJoinSubtitle.Text = en ? "Enter server IP address" : "Введите IP адрес сервера";
+            if (BtnJoinConnect != null) BtnJoinConnect.Content = en ? "Connect" : "Подключиться";
+            if (BtnJoinMainMenu != null) BtnJoinMainMenu.Content = en ? "Main Menu" : "В главное меню";
+
+            if (TxtDifficultyTitle != null) TxtDifficultyTitle.Text = en ? "Difficulty Level" : "Уровень сложности";
+            if (BtnDifficultyEasy != null) BtnDifficultyEasy.Content = en ? "Easy" : "Легкий";
+            if (BtnDifficultyMedium != null) BtnDifficultyMedium.Content = en ? "Medium" : "Средний";
+            if (BtnDifficultyHard != null) BtnDifficultyHard.Content = en ? "Hard" : "Сложный";
+            if (BtnDifficultyBack != null) BtnDifficultyBack.Content = en ? "Back" : "Назад";
+            if (BtnDifficultyMainMenu != null) BtnDifficultyMainMenu.Content = en ? "Main Menu" : "В главное меню";
+
+            if (BtnSideWhite != null) BtnSideWhite.Content = en ? "Play as White" : "Играть за Белых";
+            if (BtnSideBlack != null) BtnSideBlack.Content = en ? "Play as Black" : "Играть за Черных";
+            if (BtnSideMainMenu != null) BtnSideMainMenu.Content = en ? "Main Menu" : "В главное меню";
+
+            if (BtnNewGame != null) BtnNewGame.Content = en ? "New Game" : "Новая игра";
+            if (TxtMoveHistoryTitle != null) TxtMoveHistoryTitle.Text = en ? "Move History" : "История ходов";
+            if (BtnGameMainMenu != null) BtnGameMainMenu.Content = en ? "Main Menu" : "В главное меню";
+
+            if (SetupTitleText != null && string.IsNullOrWhiteSpace(SetupTitleText.Text))
+                SetupTitleText.Text = en ? "Choose side" : "Выберите сторону";
+
+            if (DataContext is MainViewModel vm && vm.MoveHistoryList is ObservableCollection<MoveDisplayItem>)
+            {
+                vm.SetStatus(en ? "Language switched to English" : "Язык переключен на русский");
+            }
+        }
+
+        private void ApplyTheme(string? themeName)
+        {
+            var app = Application.Current;
+            if (app == null) return;
+
+            app.RequestedThemeVariant = themeName?.ToLowerInvariant() switch
+            {
+                "light" => ThemeVariant.Light,
+                _ => ThemeVariant.Dark
+            };
+        }
+
+        private void ApplyBoardTheme(string? boardThemeName)
+        {
+            (Color light, Color dark) = boardThemeName switch
+            {
+                "LichessBrown" => (Color.Parse("#F0D9B5"), Color.Parse("#B58863")),
+                "LichessBlue" => (Color.Parse("#DEE3E6"), Color.Parse("#8CA2AD")),
+                "LichessGray" => (Color.Parse("#E0E0E0"), Color.Parse("#8F8F8F")),
+                "LichessPurple" => (Color.Parse("#F0E5FF"), Color.Parse("#8D6AAE")),
+                "LichessOlive" => (Color.Parse("#EFECCA"), Color.Parse("#8FA66C")),
+                _ => (Color.Parse("#F0D9B5"), Color.Parse("#769656"))
+            };
+
+            _lightCellColor = light;
+            _darkCellColor = dark;
+            _coordOnLightColor = GetContrastColor(light);
+            _coordOnDarkColor = GetContrastColor(dark);
         }
 
         // ГЛАВНОЕ МЕНЮ: СЕТЬ 
@@ -169,6 +285,7 @@ namespace kchess.Graphics
                 {
                     Console.WriteLine(">>> ЗАПУСК ЛОКАЛЬНОЙ ИГРЫ");
                     var vm = this.DataContext as MainViewModel;
+                    if (vm == null) return;
                     vm.StartLocalGame(); // <--- ЯВНЫЙ ВЫЗОВ
                     StartGame(playAsWhite);
                 }
@@ -189,6 +306,7 @@ namespace kchess.Graphics
         {
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
+            _isWhitePerspective = playerIsWhite;
 
             // Просто рисуем доску и показываем панель игры
             BuildChessBoard(playerIsWhite);            
@@ -321,6 +439,60 @@ namespace kchess.Graphics
             var vm = this.DataContext as MainViewModel;
             vm?.SetStatus("Онлайн режим в разработке...");
         }
+
+        private void ThemeDark_Click(object? sender, RoutedEventArgs e)
+        {
+            _settings.Theme = "Dark";
+            ApplyTheme(_settings.Theme);
+            SaveSettings();
+        }
+
+        private void ThemeLight_Click(object? sender, RoutedEventArgs e)
+        {
+            _settings.Theme = "Light";
+            ApplyTheme(_settings.Theme);
+            SaveSettings();
+        }
+
+        private void LanguageRu_Click(object? sender, RoutedEventArgs e)
+        {
+            _settings.Language = "RU";
+            ApplyLanguage(_settings.Language);
+            SaveSettings();
+        }
+
+        private void LanguageEn_Click(object? sender, RoutedEventArgs e)
+        {
+            _settings.Language = "EN";
+            ApplyLanguage(_settings.Language);
+            SaveSettings();
+        }
+
+        private void BoardTheme_Click(object? sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not string boardTheme) return;
+            _settings.BoardTheme = boardTheme;
+            ApplyBoardTheme(boardTheme);
+            SaveSettings();
+            BuildChessBoard(_isWhitePerspective);
+        }
+
+        private void PieceSkin_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (PieceSkinComboBox?.SelectedItem is ComboBoxItem item)
+            {
+                _settings.PieceSkin = item.Content?.ToString() ?? "Classic";
+                SaveSettings();
+                UpdateBoardVisuals();
+            }
+        }
+
+        private void HintsToggle_Changed(object? sender, RoutedEventArgs e)
+        {
+            _settings.ShowHints = HintsToggleButton?.IsChecked ?? true;
+            SaveSettings();
+            UpdateBoardVisuals();
+        }
         
         // пипетка
         private void OpenHighlightColorPicker_Click(object? sender, RoutedEventArgs e)
@@ -338,7 +510,7 @@ namespace kchess.Graphics
                 if (_settings != null) // Защита от null
                 {
                     _settings.HighlightColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-                    SettingsService.Save(_settings);
+                    SaveSettings();
                 }
             };
 
@@ -375,8 +547,6 @@ namespace kchess.Graphics
             _images.Clear();
 
             const int BoardSize = 8;
-            var DarkCoordColor = Color.Parse("#F0D9B5");
-            var LightCoordColor = Color.Parse("#769656");
             string[] files = { "a", "b", "c", "d", "e", "f", "g", "h" };
 
             grid.ColumnDefinitions.Clear();
@@ -405,13 +575,13 @@ namespace kchess.Graphics
                     };
 
                     bool isDark = (logicX + logicY) % 2 == 1;
-                    var cellColor = isDark ? Color.Parse("#769656") : Color.Parse("#F0D9B5");
+                    var cellColor = isDark ? _darkCellColor : _lightCellColor;
                     cellBorder.Background = new SolidColorBrush(cellColor);
 
                     var contentGrid = new Grid();
                     cellBorder.Child = contentGrid;
 
-                    var coordColor = isDark ? DarkCoordColor : LightCoordColor;
+                    var coordColor = isDark ? _coordOnDarkColor : _coordOnLightColor;
                     var brush = new SolidColorBrush(coordColor);
 
                     // Координаты: буквы снизу, цифры справа (относительно игрока)
@@ -451,6 +621,18 @@ namespace kchess.Graphics
                     };
                     contentGrid.Children.Add(pieceImage);
 
+                    var pieceSymbol = new TextBlock
+                    {
+                        Name = $"PieceSymbol_{x}_{y}",
+                        FontSize = 46,
+                        FontWeight = FontWeight.Bold,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        IsHitTestVisible = false,
+                        IsVisible = false
+                    };
+                    contentGrid.Children.Add(pieceSymbol);
+
                     cellBorder.PointerReleased += (s, e) =>
                     {
                         if (e.InitialPressMouseButton == MouseButton.Left)
@@ -471,6 +653,8 @@ namespace kchess.Graphics
         {
             var vm = this.DataContext as MainViewModel;
             if (vm == null) return;
+            bool symbolsSkin = string.Equals(_settings.PieceSkin, "Symbols", StringComparison.OrdinalIgnoreCase);
+            bool showHints = _settings.ShowHints;
 
             foreach (var cell in _cells)
             {
@@ -504,48 +688,115 @@ namespace kchess.Graphics
                 selectionBorder.IsVisible = (_selectedX == x && _selectedY == y);
 
                 // 2. Призрак хода
-                bool isPossibleMove = _possibleMoves.Any(m => m.x == x && m.y == y);
+                bool isPossibleMove = showHints && _possibleMoves.Any(m => m.x == x && m.y == y);
                 var ghostImage = gridContainer.Children
                     .FirstOrDefault(c => c is Image i && i.Name != null && i.Name.StartsWith("Ghost")) as Image;
+                var ghostSymbol = gridContainer.Children
+                    .FirstOrDefault(c => c is TextBlock t && t.Name != null && t.Name.StartsWith("GhostSymbol")) as TextBlock;
 
                 if (isPossibleMove)
                 {
-                    if (ghostImage == null)
+                    if (symbolsSkin)
                     {
-                        ghostImage = new Image
+                        ghostImage?.IsVisible = false;
+                        if (ghostSymbol == null)
                         {
-                            Name = $"Ghost_{x}_{y}",
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Stretch = Stretch.Uniform,
-                            IsHitTestVisible = false,
-                            Opacity = 0.5
-                        };
-                        gridContainer.Children.Add(ghostImage);
-                    }
+                            ghostSymbol = new TextBlock
+                            {
+                                Name = $"GhostSymbol_{x}_{y}",
+                                FontSize = 46,
+                                FontWeight = FontWeight.Bold,
+                                Opacity = 0.45,
+                                HorizontalAlignment = HorizontalAlignment.Center,
+                                VerticalAlignment = VerticalAlignment.Center,
+                                IsHitTestVisible = false
+                            };
+                            gridContainer.Children.Add(ghostSymbol);
+                        }
 
-                    var selectedPiece = vm.Board[_selectedY!.Value, _selectedX!.Value];
-                    if (selectedPiece != null)
-                    {
-                        LoadPieceImage(ghostImage!, selectedPiece);
-                        // Скрываем призрака, если на клетке стоит своя фигура (атака)
-                        ghostImage!.IsVisible = (piece == null || piece.Color != selectedPiece.Color);
+                        var selectedPiece = vm.Board[_selectedY!.Value, _selectedX!.Value];
+                        if (selectedPiece != null)
+                        {
+                            ghostSymbol.Text = GetPieceSymbol(selectedPiece);
+                            ghostSymbol.Foreground = new SolidColorBrush(selectedPiece.Color == PieceColor.White ? Colors.White : Colors.Black);
+                            ghostSymbol.IsVisible = (piece == null || piece.Color != selectedPiece.Color);
+                        }
+                        else
+                        {
+                            ghostSymbol.IsVisible = false;
+                        }
                     }
                     else
                     {
-                        ghostImage!.IsVisible = false;
+                        ghostSymbol?.IsVisible = false;
+                        if (ghostImage == null)
+                        {
+                            ghostImage = new Image
+                            {
+                                Name = $"Ghost_{x}_{y}",
+                                HorizontalAlignment = HorizontalAlignment.Center,
+                                VerticalAlignment = VerticalAlignment.Center,
+                                Stretch = Stretch.Uniform,
+                                IsHitTestVisible = false,
+                                Opacity = 0.5
+                            };
+                            gridContainer.Children.Add(ghostImage);
+                        }
+
+                        var selectedPiece = vm.Board[_selectedY!.Value, _selectedX!.Value];
+                        if (selectedPiece != null)
+                        {
+                            LoadPieceImage(ghostImage!, selectedPiece);
+                            // Скрываем призрака, если на клетке стоит своя фигура (атака)
+                            ghostImage!.IsVisible = (piece == null || piece.Color != selectedPiece.Color);
+                        }
+                        else
+                        {
+                            ghostImage!.IsVisible = false;
+                        }
                     }
                 }
-                else if (ghostImage != null)
+                else
                 {
-                    ghostImage.IsVisible = false;
+                    if (ghostImage != null) ghostImage.IsVisible = false;
+                    if (ghostSymbol != null) ghostSymbol.IsVisible = false;
                 }
 
                 // 3. Реальная фигура
                 var realImage = gridContainer.Children
                     .FirstOrDefault(c => c is Image i && i.Name != null && i.Name.StartsWith("PieceImage_")) as Image;
-                if (realImage != null)
+                var realSymbol = gridContainer.Children
+                    .FirstOrDefault(c => c is TextBlock t && t.Name != null && t.Name.StartsWith("PieceSymbol_")) as TextBlock;
+
+                if (symbolsSkin)
                 {
+                    if (realImage != null)
+                    {
+                        realImage.IsVisible = false;
+                        realImage.Source = null;
+                    }
+
+                    if (realSymbol == null) continue;
+                    if (piece != null)
+                    {
+                        realSymbol.Text = GetPieceSymbol(piece);
+                        realSymbol.Foreground = new SolidColorBrush(piece.Color == PieceColor.White ? Colors.White : Colors.Black);
+                        realSymbol.IsVisible = true;
+                    }
+                    else
+                    {
+                        realSymbol.IsVisible = false;
+                        realSymbol.Text = string.Empty;
+                    }
+                }
+                else if (realImage != null)
+                {
+                    if (realSymbol != null)
+                    {
+                        realSymbol.IsVisible = false;
+                        realSymbol.Text = string.Empty;
+                    }
+
                     if (piece != null)
                     {
                         LoadPieceImage(realImage, piece);
@@ -571,16 +822,68 @@ namespace kchess.Graphics
                 PieceType.Rook => "r", PieceType.Queen => "q", PieceType.King => "k", _ => ""
             };
             string colorCode = (piece.Color == PieceColor.White) ? "l" : "d";
-            string fileName = $"Chess_{figCode}{colorCode}t60.png";
 
-            try
+            var candidates = GetSkinAssetCandidates(_settings.PieceSkin, figCode, colorCode);
+            foreach (var fileName in candidates)
             {
-                string assetPath = $"/Graphics/Assets/{fileName}";
-                var uri = new Uri($"avares://kchess{assetPath}");
-                using var stream = AssetLoader.Open(uri);
-                image.Source = new Bitmap(stream);
+                try
+                {
+                    string assetPath = $"/Graphics/Assets/{fileName}";
+                    var uri = new Uri($"avares://kchess{assetPath}");
+                    using var stream = AssetLoader.Open(uri);
+                    image.Source = new Bitmap(stream);
+                    return;
+                }
+                catch
+                {
+                    // Пробуем следующий вариант в списке.
+                }
             }
-            catch { image.Source = null; }
+
+            image.Source = null;
+        }
+
+        private static IEnumerable<string> GetSkinAssetCandidates(string? skin, string figCode, string colorCode)
+        {
+            // Кастомные скины: просто добавьте файлы по этим шаблонам в Graphics/Assets.
+            // Формат colorCode: l (white), d (black), figCode: p n b r q k.
+            if (string.Equals(skin, "Neo", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return $"Neo_{figCode}{colorCode}.png";
+                yield return $"Neo_Chess_{figCode}{colorCode}t60.png";
+            }
+            else if (string.Equals(skin, "Glass", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return $"Glass_{figCode}{colorCode}.png";
+                yield return $"Glass_Chess_{figCode}{colorCode}t60.png";
+            }
+            else if (string.Equals(skin, "Minimal", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return $"Minimal_{figCode}{colorCode}.png";
+                yield return $"Minimal_Chess_{figCode}{colorCode}t60.png";
+            }
+
+            yield return $"Chess_{figCode}{colorCode}t60.png";
+        }
+
+        private static string GetPieceSymbol(Piece piece)
+        {
+            return (piece.Color, piece.Type) switch
+            {
+                (PieceColor.White, PieceType.King) => "♔",
+                (PieceColor.White, PieceType.Queen) => "♕",
+                (PieceColor.White, PieceType.Rook) => "♖",
+                (PieceColor.White, PieceType.Bishop) => "♗",
+                (PieceColor.White, PieceType.Knight) => "♘",
+                (PieceColor.White, PieceType.Pawn) => "♙",
+                (PieceColor.Black, PieceType.King) => "♚",
+                (PieceColor.Black, PieceType.Queen) => "♛",
+                (PieceColor.Black, PieceType.Rook) => "♜",
+                (PieceColor.Black, PieceType.Bishop) => "♝",
+                (PieceColor.Black, PieceType.Knight) => "♞",
+                (PieceColor.Black, PieceType.Pawn) => "♟",
+                _ => string.Empty
+            };
         }
 
         private void OnCellClicked(int x, int y)
