@@ -39,11 +39,11 @@
                                VerticalAlignment="Center"/>
                 </Grid>
 
-                <Button Content="Игра против ИИ" Width="200" Click="StartVsAi_Click" Padding="10,5"/>
-                <Button Content="Игра с другом" Width="200" Click="StartLocalFriend_Click" Padding="10,5"/>
-                <Button Content="Создать онлайн игру" Width="200" Click="CreateNetworkGame_Click" Padding="10,5"/>
-                <Button Content="Присоединиться к игре" Width="200" Click="JoinNetworkGame_Click" Padding="10,5"/>
-                <Button Content="Выход" Width="200" Click="ExitApp_Click" Background="#753a03" Foreground="White" Margin="0,20,0,0" Padding="10,5"/>
+                <Button x:Name="BtnMainVsAi" Content="Игра против ИИ" Width="200" Click="StartVsAi_Click" Padding="10,5"/>
+                <Button x:Name="BtnMainLocal" Content="Игра с другом" Width="200" Click="StartLocalFriend_Click" Padding="10,5"/>
+                <Button x:Name="BtnMainCreateOnline" Content="Создать онлайн игру" Width="200" Click="CreateNetworkGame_Click" Padding="10,5"/>
+                <Button x:Name="BtnMainJoinOnline" Content="Присоединиться к игре" Width="200" Click="JoinNetworkGame_Click" Padding="10,5"/>
+                <Button x:Name="BtnMainExit" Content="Выход" Width="200" Click="ExitApp_Click" Background="#753a03" Foreground="White" Margin="0,20,0,0" Padding="10,5"/>
             </StackPanel>
         </Grid>
 
@@ -57,14 +57,14 @@
             <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="25">
-                <TextBlock Text="Настройки сервера" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                <TextBlock Text="Вы будете играть за выбранный цвет" FontSize="16" Foreground="#CCC" HorizontalAlignment="Center" Margin="0,-10,0,20"/>
+                <TextBlock x:Name="TxtHostTitle" Text="Настройки сервера" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="TxtHostSubtitle" Text="Вы будете играть за выбранный цвет" FontSize="16" Foreground="#CCC" HorizontalAlignment="Center" Margin="0,-10,0,20"/>
                 
-                <Button Content="Создать сервер" Width="220" Click="StartHostServer_Click" Padding="12,8" FontSize="18" Background="#2E7D32" Foreground="White"/>
+                <Button x:Name="BtnHostCreateServer" Content="Создать сервер" Width="220" Click="StartHostServer_Click" Padding="12,8" FontSize="18" Background="#2E7D32" Foreground="White"/>
                 
                 <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,0">
-                    <Button Content="Назад" Width="120" Click="BackToSideSelection_Click" Padding="8,5" Background="#555" Foreground="White"/>
-                    <Button Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
+                    <Button x:Name="BtnHostBack" Content="Назад" Width="120" Click="BackToSideSelection_Click" Padding="8,5" Background="#555" Foreground="White"/>
+                    <Button x:Name="BtnHostMainMenu" Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
@@ -79,8 +79,8 @@
             <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="25">
-                <TextBlock Text="Подключение к игре" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                <TextBlock Text="Введите IP адрес сервера" FontSize="16" Foreground="#CCC" HorizontalAlignment="Center" Margin="0,-10,0,20"/>
+                <TextBlock x:Name="TxtJoinTitle" Text="Подключение к игре" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="TxtJoinSubtitle" Text="Введите IP адрес сервера" FontSize="16" Foreground="#CCC" HorizontalAlignment="Center" Margin="0,-10,0,20"/>
                 
                 <TextBox x:Name="IpInputBox" 
                          Width="220" 
@@ -92,10 +92,10 @@
                          Foreground="White" 
                          BorderBrush="#666"/>
                 
-                <Button Content="Подключиться" Width="220" Click="StartJoinClient_Click" Padding="12,8" FontSize="18" Background="#1976D2" Foreground="White"/>
+                <Button x:Name="BtnJoinConnect" Content="Подключиться" Width="220" Click="StartJoinClient_Click" Padding="12,8" FontSize="18" Background="#1976D2" Foreground="White"/>
                 
                 <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,0">
-                    <Button Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
+                    <Button x:Name="BtnJoinMainMenu" Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
@@ -110,15 +110,15 @@
             <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
-                <TextBlock Text="Уровень сложности" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                <TextBlock x:Name="TxtDifficultyTitle" Text="Уровень сложности" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                 
-                <Button Content="Легкий" Width="220" Click="SelectAiDifficulty_Click" Tag="Easy" Padding="10,8" FontSize="16"/>
-                <Button Content="Средний" Width="220" Click="SelectAiDifficulty_Click" Tag="Medium" Padding="10,8" FontSize="16"/>
-                <Button Content="Сложный" Width="220" Click="SelectAiDifficulty_Click" Tag="Hard" Padding="10,8" FontSize="16"/>
+                <Button x:Name="BtnDifficultyEasy" Content="Легкий" Width="220" Click="SelectAiDifficulty_Click" Tag="Easy" Padding="10,8" FontSize="16"/>
+                <Button x:Name="BtnDifficultyMedium" Content="Средний" Width="220" Click="SelectAiDifficulty_Click" Tag="Medium" Padding="10,8" FontSize="16"/>
+                <Button x:Name="BtnDifficultyHard" Content="Сложный" Width="220" Click="SelectAiDifficulty_Click" Tag="Hard" Padding="10,8" FontSize="16"/>
                 
                 <StackPanel Orientation="Horizontal" Spacing="15" Margin="0,20,0,0" HorizontalAlignment="Center">
-                    <Button Content="Назад" Width="120" Click="BackToSideSelection_Click" Padding="8,5" Background="#555" Foreground="White"/>
-                    <Button Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
+                    <Button x:Name="BtnDifficultyBack" Content="Назад" Width="120" Click="BackToSideSelection_Click" Padding="8,5" Background="#555" Foreground="White"/>
+                    <Button x:Name="BtnDifficultyMainMenu" Content="В главное меню" Width="140" Click="BackToMenu_Click" Padding="8,5" Background="#444" Foreground="White"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
@@ -135,10 +135,10 @@
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
                 <TextBlock x:Name="SetupTitleText" Text="Выберите сторону" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                 
-                <Button Content="Играть за Белых" Width="220" Click="ChooseSide_Click" Tag="White" Padding="10,8" FontSize="16"/>
-                <Button Content="Играть за Черных" Width="220" Click="ChooseSide_Click" Tag="Black" Padding="10,8" FontSize="16"/>
+                <Button x:Name="BtnSideWhite" Content="Играть за Белых" Width="220" Click="ChooseSide_Click" Tag="White" Padding="10,8" FontSize="16"/>
+                <Button x:Name="BtnSideBlack" Content="Играть за Черных" Width="220" Click="ChooseSide_Click" Tag="Black" Padding="10,8" FontSize="16"/>
                 
-                <Button Content="В главное меню" 
+                <Button x:Name="BtnSideMainMenu" Content="В главное меню" 
                         Width="160" 
                         Click="BackToMenu_Click" 
                         Margin="0,20,0,0" 
@@ -167,16 +167,17 @@
                         <TextBlock Text="{Binding StatusMessage}" 
                                FontSize="18" 
                                FontWeight="Bold" 
+                               Foreground="White"
                                TextAlignment="Center"
                                TextWrapping="Wrap"
                                VerticalAlignment="Center"/>
                     </Border>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                        <Button Content="Новая игра" Click="NewGame_Click" Padding="10,5"/>
+                        <Button x:Name="BtnNewGame" Content="Новая игра" Click="NewGame_Click" Padding="10,5"/>
                     </StackPanel>
 
-                    <TextBlock Text="История ходов" FontSize="16" FontWeight="Bold" Margin="0,10,0,5"/>
+                    <TextBlock x:Name="TxtMoveHistoryTitle" Text="История ходов" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0,10,0,5"/>
 
                     <Border Background="#2a2a2a" CornerRadius="5" Padding="5" VerticalAlignment="Stretch">
                         <ListBox ItemsSource="{Binding MoveHistoryList}" 
@@ -194,7 +195,7 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Border>
-                    <Button Content="В главное меню" 
+                    <Button x:Name="BtnGameMainMenu" Content="В главное меню" 
                         HorizontalAlignment="Stretch" 
                         Margin="0,20,0,0"
                         Padding="10"
@@ -233,12 +234,24 @@
                         
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="🎨" FontSize="16"/>
-                            <TextBlock Text="Themes" Foreground="White"/>
+                            <TextBlock Text="Board Theme" Foreground="White"/>
+                        </StackPanel>
+                        <WrapPanel Margin="20,0,0,0" ItemHeight="28" ItemWidth="78">
+                            <Button Content="Green" Tag="LichessGreen" Click="BoardTheme_Click" Padding="5" FontSize="12" Margin="0,0,4,4"/>
+                            <Button Content="Brown" Tag="LichessBrown" Click="BoardTheme_Click" Padding="5" FontSize="12" Margin="0,0,4,4"/>
+                            <Button Content="Blue" Tag="LichessBlue" Click="BoardTheme_Click" Padding="5" FontSize="12" Margin="0,0,4,4"/>
+                            <Button Content="Gray" Tag="LichessGray" Click="BoardTheme_Click" Padding="5" FontSize="12" Margin="0,0,4,4"/>
+                            <Button Content="Purple" Tag="LichessPurple" Click="BoardTheme_Click" Padding="5" FontSize="12" Margin="0,0,4,4"/>
+                            <Button Content="Olive" Tag="LichessOlive" Click="BoardTheme_Click" Padding="5" FontSize="12" Margin="0,0,4,4"/>
+                        </WrapPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🌓" FontSize="16"/>
+                            <TextBlock Text="UI Theme" Foreground="White"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="5" Margin="20,0,0,0">
-                            <Button Content="Dark" Width="60" Padding="5" FontSize="12"/>
-                            <Button Content="Light" Width="60" Padding="5" FontSize="12"/>
-                            <Button Content="Custom" Width="60" Padding="5" FontSize="12"/>
+                            <Button Content="Dark" Width="60" Padding="5" FontSize="12" Click="ThemeDark_Click"/>
+                            <Button Content="Light" Width="60" Padding="5" FontSize="12" Click="ThemeLight_Click"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -246,25 +259,27 @@
                             <TextBlock Text="Language" Foreground="White"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="5" Margin="20,0,0,0">
-                            <Button Content="RU" Width="50" Padding="5" FontSize="12"/>
-                            <Button Content="EN" Width="50" Padding="5" FontSize="12"/>
+                            <Button x:Name="BtnLangRu" Content="RU" Width="50" Padding="5" FontSize="12" Click="LanguageRu_Click"/>
+                            <Button x:Name="BtnLangEn" Content="EN" Width="50" Padding="5" FontSize="12" Click="LanguageEn_Click"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="♟️" FontSize="16"/>
                             <TextBlock Text="Piece Skins" Foreground="White"/>
                         </StackPanel>
-                        <ComboBox Width="180" HorizontalAlignment="Left" FontSize="12">
+                        <ComboBox x:Name="PieceSkinComboBox" Width="180" HorizontalAlignment="Left" FontSize="12" SelectionChanged="PieceSkin_SelectionChanged">
                             <ComboBoxItem Content="Classic" IsSelected="True"/>
-                            <ComboBoxItem Content="Wooden"/>
-                            <ComboBoxItem Content="Metal"/>
+                            <ComboBoxItem Content="Symbols"/>
+                            <ComboBoxItem Content="Neo"/>
+                            <ComboBoxItem Content="Glass"/>
+                            <ComboBoxItem Content="Minimal"/>
                         </ComboBox>
 
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="💡" FontSize="16"/>
                             <TextBlock Text="Show Hints" Foreground="White"/>
                         </StackPanel>
-                        <ToggleButton HorizontalAlignment="Left" Margin="20,0,0,0" IsChecked="True" Content="On"/>
+                        <ToggleButton x:Name="HintsToggleButton" HorizontalAlignment="Left" Margin="20,0,0,0" IsChecked="True" Content="On" Checked="HintsToggle_Changed" Unchecked="HintsToggle_Changed"/>
 
                         <Border Height="1" Background="#444" Margin="0,5"/>
                         

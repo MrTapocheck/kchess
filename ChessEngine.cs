@@ -29,6 +29,15 @@ namespace kchess
 
     public class ChessEngine
     {
+        private static readonly int[] KnightDx = { 1, 2, 2, 1, -1, -2, -2, -1 };
+        private static readonly int[] KnightDy = { 2, 1, -1, -2, -2, -1, 1, 2 };
+
+        private static readonly int[] RookDx = { 1, -1, 0, 0 };
+        private static readonly int[] RookDy = { 0, 0, 1, -1 };
+
+        private static readonly int[] BishopDx = { 1, 1, -1, -1 };
+        private static readonly int[] BishopDy = { 1, -1, 1, -1 };
+
         public Piece?[,] Board { get; private set; }
         public PieceColor CurrentTurn { get; private set; } = PieceColor.White;
         public bool IsGameOver { get; private set; } = false;
@@ -195,30 +204,94 @@ namespace kchess
 
         public bool IsSquareAttacked(int x, int y, PieceColor attackerColor)
         {
-            for (int bx = 0; bx < 8; bx++)
-            {
-                for (int by = 0; by < 8; by++)
-                {
-                    var piece = Board[by, bx];
-                    if (piece != null && piece.Color == attackerColor)
-                    {
-                        if (piece.Type == PieceType.Pawn)
-                        {
-                            int direction = (piece.Color == PieceColor.White) ? -1 : 1;
-                            if (by + direction == y && Math.Abs(bx - x) == 1)
-                                return true;
-                            continue;
-                        }
+            // Геометрическая проверка атаки клетки:
+            // - без генерации ходов и перебора всех фигур
+            // - корректно для "атакованных" квадратов (в т.ч. для шаха/рокировки)
 
-                        var moves = piece.GetLegalMoves(Board, new Position(bx, by));
-                        foreach (var move in moves)
-                        {
-                            if (move.X == x && move.Y == y)
-                                return true;
-                        }
-                    }
+            // 1) Пешки
+            // Пешка атакует вперед по направлению своего цвета на 1 клетку по диагонали.
+            // В ваших координатах: White двигается direction=-1, Black direction=+1.
+            int pawnFromY = attackerColor == PieceColor.White ? y + 1 : y - 1;
+            if (IsValidCoordinate(x - 1, pawnFromY) && Board[pawnFromY, x - 1] is Piece p1 &&
+                p1.Color == attackerColor && p1.Type == PieceType.Pawn)
+                return true;
+            if (IsValidCoordinate(x + 1, pawnFromY) && Board[pawnFromY, x + 1] is Piece p2 &&
+                p2.Color == attackerColor && p2.Type == PieceType.Pawn)
+                return true;
+
+            // 2) Кони
+            // Офсеты для L-образного движения.
+            for (int i = 0; i < 8; i++)
+            {
+                int ax = x + KnightDx[i];
+                int ay = y + KnightDy[i];
+                if (!IsValidCoordinate(ax, ay)) continue;
+
+                var attacker = Board[ay, ax];
+                if (attacker != null && attacker.Color == attackerColor && attacker.Type == PieceType.Knight)
+                    return true;
+            }
+
+            // 3) Король (соседние клетки)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+                    int ax = x + dx;
+                    int ay = y + dy;
+                    if (!IsValidCoordinate(ax, ay)) continue;
+
+                    var attacker = Board[ay, ax];
+                    if (attacker != null && attacker.Color == attackerColor && attacker.Type == PieceType.King)
+                        return true;
                 }
             }
+
+            // 4) Ладьи и Ферзи (лучи по ортогонали)
+            for (int i = 0; i < 4; i++)
+            {
+                int dx = RookDx[i];
+                int dy = RookDy[i];
+                int ax = x + dx;
+                int ay = y + dy;
+                while (IsValidCoordinate(ax, ay))
+                {
+                    var attacker = Board[ay, ax];
+                    if (attacker != null)
+                    {
+                        if (attacker.Color == attackerColor &&
+                            (attacker.Type == PieceType.Rook || attacker.Type == PieceType.Queen))
+                            return true;
+                        break; // Блокируется первой фигурой на луче
+                    }
+                    ax += dx;
+                    ay += dy;
+                }
+            }
+
+            // 5) Слоны и Ферзи (лучи по диагоналям)
+            for (int i = 0; i < 4; i++)
+            {
+                int dx = BishopDx[i];
+                int dy = BishopDy[i];
+                int ax = x + dx;
+                int ay = y + dy;
+                while (IsValidCoordinate(ax, ay))
+                {
+                    var attacker = Board[ay, ax];
+                    if (attacker != null)
+                    {
+                        if (attacker.Color == attackerColor &&
+                            (attacker.Type == PieceType.Bishop || attacker.Type == PieceType.Queen))
+                            return true;
+                        break;
+                    }
+                    ax += dx;
+                    ay += dy;
+                }
+            }
+
             return false;
         }
 
