@@ -22,17 +22,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install .NET 10 Preview
+      - name: Setup .NET 10 (preview)
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '10.0.x'
+          include-prerelease: true
+
+      - name: .NET diagnostics
         run: |
-          wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
-          chmod +x dotnet-install.sh
-          # Устанавливаем канал preview
-          ./dotnet-install.sh --channel 10.0 --quality preview
-          # Добавляем в путь системы
-          export DOTNET_ROOT=$HOME/.dotnet
-          export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
-          # Проверяем версию
-          dotnet --version
+          dotnet --info
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
       - name: Restore dependencies
         run: dotnet restore
