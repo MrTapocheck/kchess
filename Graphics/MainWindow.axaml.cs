@@ -44,6 +44,7 @@ namespace kchess.Graphics
         // для подсветки
         private List<(int x, int y)> _possibleMoves = new List<(int, int)>(); 
         public Color HighlightColor { get; set; } = Color.Parse("#FFFF00");
+        public Color LastMoveHighlightColor { get; set; } = Color.Parse("#BACA44");
 
         public MainWindow()
         {
@@ -686,6 +687,36 @@ namespace kchess.Graphics
                 }
 
                 selectionBorder.IsVisible = (_selectedX == x && _selectedY == y);
+
+                // 1.5 Подсветка последнего хода
+                bool isLastMoveCell = vm.LastMove.HasValue && 
+                    ((vm.LastMove.Value.fromX == x && vm.LastMove.Value.fromY == y) ||
+                     (vm.LastMove.Value.toX == x && vm.LastMove.Value.toY == y));
+                
+                var lastMoveHighlight = gridContainer.Children
+                    .FirstOrDefault(c => c is Border b && b.Name == "LastMoveHighlight") as Border;
+
+                if (isLastMoveCell)
+                {
+                    if (lastMoveHighlight == null)
+                    {
+                        lastMoveHighlight = new Border
+                        {
+                            Name = "LastMoveHighlight",
+                            Background = new SolidColorBrush(LastMoveHighlightColor) { Opacity = 0.5 },
+                            IsHitTestVisible = false,
+                            HorizontalAlignment = HorizontalAlignment.Stretch,
+                            VerticalAlignment = VerticalAlignment.Stretch
+                        };
+                        gridContainer.Children.Insert(0, lastMoveHighlight);
+                    }
+                    lastMoveHighlight.IsVisible = true;
+                }
+                else
+                {
+                    if (lastMoveHighlight != null)
+                        lastMoveHighlight.IsVisible = false;
+                }
 
                 // 2. Призрак хода
                 bool isPossibleMove = showHints && _possibleMoves.Any(m => m.x == x && m.y == y);

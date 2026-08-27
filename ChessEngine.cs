@@ -46,6 +46,9 @@ namespace kchess
         // История ходов в формате  "e2-e4", "Ng1-f3"
         public List<string> MoveHistory { get; private set; } = new List<string>();
         
+        // Координаты последнего хода (fromX, fromY, toX, toY)
+        public (int fromX, int fromY, int toX, int toY)? LastMove { get; private set; } = null;
+        
         // Счетчик полуходов для правила 50 ходов (сбрасывается при ходе пешкой или взятии)
         private int _halfMoveClock = 0;
         
@@ -101,6 +104,7 @@ namespace kchess
 
             // Сброс всех флагов и истории
             MoveHistory.Clear();
+            LastMove = null;
             _halfMoveClock = 0;
             _positionHistory.Clear();
             IsGameOver = false;
@@ -645,6 +649,9 @@ namespace kchess
 
             // Если превращения нет, добавляем ход как есть
             MoveHistory.Add(moveNotation);
+            
+            // Сохраняем координаты последнего хода для подсветки
+            LastMove = (fromX, fromY, toX, toY);
 
             // Смена хода
             PieceColor previousTurn = CurrentTurn;
