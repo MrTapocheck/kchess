@@ -2,8 +2,6 @@
 obj/
 bin/
 
-!bin/Debug/net10.0/chess_model.onnx
-!bin/Debug/net10.0/chess_model.onnx.data
 # Системные файлы
 .DS_Store
 Thumbs.db
@@ -39,3 +37,5 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.onnx
+*.onnx.data
