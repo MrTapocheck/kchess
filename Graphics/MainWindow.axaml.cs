@@ -148,6 +148,59 @@ namespace kchess.Graphics
                 "light" => ThemeVariant.Light,
                 _ => ThemeVariant.Dark
             };
+
+            // Обновляем цвета текста в UI
+            UpdateTextColorsForTheme(themeName);
+        }
+
+        private void UpdateTextColorsForTheme(string? themeName)
+        {
+            bool isLight = string.Equals(themeName, "Light", StringComparison.OrdinalIgnoreCase);
+            Color primaryColor = isLight ? Colors.Black : Colors.White;
+            Color secondaryColor = isLight ? Color.Parse("#666") : Color.Parse("#CCC");
+            Color tertiaryColor = isLight ? Color.Parse("#888") : Color.Parse("#AAA");
+
+            // Обновляем цвета текста во всех элементах через именованные элементы
+            if (TxtHostTitle != null) TxtHostTitle.Foreground = new SolidColorBrush(primaryColor);
+            if (TxtHostSubtitle != null) TxtHostSubtitle.Foreground = new SolidColorBrush(secondaryColor);
+            if (TxtJoinTitle != null) TxtJoinTitle.Foreground = new SolidColorBrush(primaryColor);
+            if (TxtJoinSubtitle != null) TxtJoinSubtitle.Foreground = new SolidColorBrush(secondaryColor);
+            if (TxtDifficultyTitle != null) TxtDifficultyTitle.Foreground = new SolidColorBrush(primaryColor);
+            if (SetupTitleText != null) SetupTitleText.Foreground = new SolidColorBrush(primaryColor);
+            if (TxtMoveHistoryTitle != null) TxtMoveHistoryTitle.Foreground = new SolidColorBrush(primaryColor);
+
+            // Обновляем кнопки
+            UpdateButtonColorsForTheme(primaryColor);
+
+            // Обновляем настройки popup
+            UpdateSettingsPopupColorsForTheme(primaryColor, secondaryColor);
+
+            // Перерисовываем доску для обновления координат
+            UpdateBoardVisuals();
+        }
+
+        private void UpdateButtonColorsForTheme(Color primaryColor)
+        {
+            // Обновляем цвета текста кнопок
+            var buttons = new[] { BtnHostCreateServer, BtnHostBack, BtnHostMainMenu,
+                                BtnJoinConnect, BtnJoinMainMenu,
+                                BtnDifficultyBack, BtnDifficultyMainMenu,
+                                BtnSideMainMenu, BtnMainExit };
+
+            foreach (var button in buttons)
+            {
+                if (button != null)
+                {
+                    button.Foreground = new SolidColorBrush(primaryColor);
+                }
+            }
+        }
+
+        private void UpdateSettingsPopupColorsForTheme(Color primaryColor, Color secondaryColor)
+        {
+            // Находим текстовые элементы в popup через визуальное дерево
+            // Это сложнее, так как popup не является частью визуального дерева
+            // Мы будем обновлять их при открытии popup
         }
 
         private void ApplyBoardTheme(string? boardThemeName)
@@ -1035,7 +1088,7 @@ namespace kchess.Graphics
                 Text = "Превращение пешки!",
                 FontSize = 20,
                 FontWeight = FontWeight.Bold,
-                Foreground = new SolidColorBrush(Colors.White),
+                Foreground = new SolidColorBrush(Colors.White), // Фон диалога темный, поэтому оставляем белый
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 10)
             });
