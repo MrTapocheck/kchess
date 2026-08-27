@@ -72,6 +72,7 @@ namespace kchess
         public Piece?[,] Board => _engine.Board;
         public PieceColor CurrentTurnColor => _engine.CurrentTurn;
         public string StatusMessage => _engine.LastStatus;
+        public (int fromX, int fromY, int toX, int toY)? LastMove => _engine.LastMove;
         public string CurrentTurnText => 
             _engine.IsGameOver ? "Игра окончена" : 
             (_engine.CurrentTurn == PieceColor.White ? "Ход белых" : "Ход черных");
