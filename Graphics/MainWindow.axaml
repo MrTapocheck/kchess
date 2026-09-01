@@ -149,14 +149,19 @@
                         <Button x:Name="BtnNewGame" Content="Новая игра" Click="NewGame_Click" Padding="10,5"
                                 Background="{DynamicResource SystemControlBackgroundAccentBrush}"
                                 Foreground="{DynamicResource SystemControlForegroundChromeWhiteBrush}" BorderThickness="0"/>
+                        <Button x:Name="BtnUndo" Content="Отменить ход" Click="UndoMove_Click" Padding="10,5"
+                                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                                Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" BorderThickness="0"
+                                IsEnabled="{Binding CanUndo}"/>
                     </StackPanel>
 
                     <TextBlock x:Name="TxtMoveHistoryTitle" Text="История ходов" FontSize="16" FontWeight="Bold" 
                                Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" Margin="0,10,0,5"/>
 
-                    <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" CornerRadius="5" Padding="5" VerticalAlignment="Stretch">
-                        <ListBox ItemsSource="{Binding MoveHistoryList}" Background="Transparent" BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}" CornerRadius="5" Padding="5" Height="200">
+                        <ListBox x:Name="MoveHistoryListBox" ItemsSource="{Binding MoveHistoryList}" Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid ColumnDefinitions="40,*,*" Margin="2">

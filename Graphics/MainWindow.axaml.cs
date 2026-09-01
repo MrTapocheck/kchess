@@ -12,6 +12,8 @@ using kchess.Graphics;
 using Avalonia.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Styling;
+using Avalonia.Threading;
+using System.ComponentModel;
 using System.Collections.Generic; // Для List<>
 using System.Linq;                // Для FirstOrDefault()
 using kchess.Models; 
@@ -26,7 +28,7 @@ namespace kchess.Graphics
 
         //флаги
         private bool _isVsAi = false; // true если игра против ИИ
-        private bool _isAiThinking = false;
+        private MainViewModel? _boundViewModel;
         private bool _isNetworkHost = false; // True если создаётся сервер
         private string? _selectedDifficulty = null; // "Easy", "Medium", "Hard"
         private PieceColor _playerColorForAi = PieceColor.White;
@@ -56,6 +58,8 @@ namespace kchess.Graphics
             ApplyBoardTheme(_settings.BoardTheme);
             ApplyTheme(_settings.Theme);
             ApplyLanguage(_settings.Language);
+            
+            DataContextChanged += (_, _) => BindViewModel(DataContext as MainViewModel);
             
             // Строим доску сразу при запуске
             BuildChessBoard(); 
@@ -126,6 +130,7 @@ namespace kchess.Graphics
             if (BtnSideMainMenu != null) BtnSideMainMenu.Content = en ? "Main Menu" : "В главное меню";
 
             if (BtnNewGame != null) BtnNewGame.Content = en ? "New Game" : "Новая игра";
+            if (BtnUndo != null) BtnUndo.Content = en ? "Undo Move" : "Отменить ход";
             if (TxtMoveHistoryTitle != null) TxtMoveHistoryTitle.Text = en ? "Move History" : "История ходов";
             if (BtnGameMainMenu != null) BtnGameMainMenu.Content = en ? "Main Menu" : "В главное меню";
 
@@ -373,17 +378,38 @@ namespace kchess.Graphics
             
             this.Activate();
 
-            // Гарантия первого хода ИИ, если игрок выбрал черных.
-            // Если ИИ уже сходил на этапе запуска в VM, условие не выполнится.
-            if (vm.CurrentMode == GameMode.PvAI)
+            if (vm.CurrentMode == GameMode.PvAI && !vm.CanPlayerInteract && !vm.IsAiThinking)
+                vm.MakeAiMove();
+        }
+
+        private void BindViewModel(MainViewModel? vm)
+        {
+            if (_boundViewModel != null)
             {
-                var playerColor = playerIsWhite ? PieceColor.White : PieceColor.Black;
-                if (vm.CurrentTurnColor != playerColor)
-                {
-                    vm.MakeAiMove();
-                    UpdateBoardVisuals();
-                }
+                _boundViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+                _boundViewModel.MoveHistoryAdded -= OnMoveHistoryAdded;
             }
+
+            _boundViewModel = vm;
+            if (_boundViewModel == null) return;
+
+            _boundViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _boundViewModel.MoveHistoryAdded += OnMoveHistoryAdded;
+        }
+
+        private void OnMoveHistoryAdded(object? sender, EventArgs args) => ScrollMoveHistoryToBottom();
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(MainViewModel.DisplayBoard) &&
+                e.PropertyName != nameof(MainViewModel.LastMove) &&
+                e.PropertyName != nameof(MainViewModel.CurrentTurnText) &&
+                !string.IsNullOrEmpty(e.PropertyName))
+            {
+                return;
+            }
+
+            Dispatcher.UIThread.Post(UpdateBoardVisuals, DispatcherPriority.Render);
         }
         
         // Обработчик кнопки "В главное меню" из игры
@@ -972,10 +998,8 @@ namespace kchess.Graphics
 
         private void OnCellClicked(int x, int y)
         {
-            if (_isAiThinking) return; 
-
             var vm = this.DataContext as MainViewModel;
-            if (vm == null) return;
+            if (vm == null || !vm.CanPlayerInteract) return;
 
             // Если фигура уже выбрана
             if (_selectedX.HasValue && _selectedY.HasValue)
@@ -987,7 +1011,15 @@ namespace kchess.Graphics
                     var movingPiece = vm.Board[_selectedY.Value, _selectedX.Value];
                     
                     // Проверка на превращение пешки
-                    if (movingPiece?.Type == PieceType.Pawn && (y == 0 || y == 7))
+                    bool isPromotion = false;
+                    if (movingPiece?.Type == PieceType.Pawn)
+                    {
+                        // Белые пешки превращаются на 0-й строке, черные на 7-й
+                        isPromotion = (movingPiece.Color == PieceColor.White && y == 0) ||
+                                      (movingPiece.Color == PieceColor.Black && y == 7);
+                    }
+                    
+                    if (isPromotion)
                     {
                         ShowPromotionSelection(_selectedX.Value, _selectedY.Value, x, y);
                         return;
@@ -1045,10 +1077,29 @@ namespace kchess.Graphics
             _possibleMoves.Clear();
         }
 
+        private void ScrollMoveHistoryToBottom()
+        {
+            var listBox = this.FindControl<ListBox>("MoveHistoryListBox");
+            if (listBox != null && listBox.Items.Count > 0)
+            {
+                var lastItem = listBox.Items[listBox.Items.Count - 1];
+                if (lastItem != null)
+                {
+                    listBox.ScrollIntoView(lastItem);
+                }
+            }
+        }
+
         private void NewGame_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             var vm = this.DataContext as MainViewModel;
-            if (vm != null) { vm.NewGame(); UpdateBoardVisuals(); }
+            if (vm != null) { vm.NewGamePreserveMode(); UpdateBoardVisuals(); }
+        }
+
+        private void UndoMove_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var vm = this.DataContext as MainViewModel;
+            if (vm != null) { vm.UndoMove(); UpdateBoardVisuals(); }
         }
 
         private void ShowPromotionSelection(int fromX, int fromY, int toX, int toY)
