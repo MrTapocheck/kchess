@@ -165,6 +165,8 @@ namespace kchess.Services
             _depth = Math.Max(1, depth);
         }
 
+        public int Depth => _depth;
+
         public (int fromX, int fromY, int toX, int toY)? GetBestMove(
             ChessEngine engine,
             List<(int fromX, int fromY, int toX, int toY)> candidates)
@@ -178,10 +180,6 @@ namespace kchess.Services
             if (firstPiece == null) return null;
             PieceColor aiColor = firstPiece.Color;
 
-            // Инициализируем состояние поиска из реальной партии:
-            // - halfMoveClock = текущее значение из движка
-            // - repetitions засевается количеством реальных повторений текущей позиции,
-            //   чтобы поиск знал, что эта позиция уже встречалась N раз до начала перебора.
             int initialHalfMoveClock = engine.HalfMoveClock;
             var repetitions = new Dictionary<ulong, int>();
             ulong startHash = ComputeHash(engine, engine.CurrentTurn, aiColor);
@@ -233,7 +231,6 @@ namespace kchess.Services
 
             ulong currentHash = ComputeHash(engine, sideToMove, aiColor);
 
-            // Терминальные проверки — теперь триггерятся и ВНУТРИ поиска, а не только на листе.
             if (halfMoveClock >= 100 || engine.CheckInsufficientMaterial())
                 return 0f;
             if (repetitions.TryGetValue(currentHash, out int currentReps) && currentReps >= 3)
@@ -260,7 +257,6 @@ namespace kchess.Services
             float bestScore = isMaximizing ? float.MinValue : float.MaxValue;
             bool cutoffOccurred = false;
 
-            // === depth == 1: батч-ветка с проверками ничьей ===
             if (depth == 1 && moves.Count > 0)
             {
                 for (int start = 0; start < moves.Count; start += BatchChunkSize)
@@ -327,7 +323,6 @@ namespace kchess.Services
                 return bestScore;
             }
 
-            // === Обычная рекурсивная ветка (depth > 1) ===
             foreach (var move in moves)
             {
                 ApplyMoveForSearch(engine, move, out var undo);
@@ -394,13 +389,16 @@ namespace kchess.Services
                         }
                         if (piece.Type == PieceType.Pawn && engine._enPassantTarget.HasValue)
                         {
-                            var ep = engine._enPassantTarget.Value;
-                            int dir = piece.Color == PieceColor.White ? -1 : 1;
-                            if (ep.Y == y + dir && Math.Abs(ep.X - x) == 1)
+                            var ep = engine._enPassantTarget;
+                            if (ep.HasValue)
                             {
-                                var m = (x, y, ep.X, ep.Y);
-                                if (IsMoveLegalFast(engine, m, color))
-                                    moves.Add(m);
+                                int dir = piece.Color == PieceColor.White ? -1 : 1;
+                                if (ep.Value.Y == y + dir && Math.Abs(ep.Value.X - x) == 1)
+                                {
+                                    var m = (x, y, ep.Value.X, ep.Value.Y);
+                                    if (IsMoveLegalFast(engine, m, color))
+                                        moves.Add(m);
+                                }
                             }
                         }
                         if (piece.Type == PieceType.King)
